@@ -1,4 +1,4 @@
-const CACHE_NAME = 'social-pharmacy-pwa-v4-figures-complete';
+const CACHE_NAME = 'social-pharmacy-pwa-v6-context-figures-fixed';
 const ASSETS = [
   './',
   './index.html',
