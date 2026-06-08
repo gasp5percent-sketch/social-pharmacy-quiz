@@ -164,6 +164,36 @@
     var gl=glossaryItems(q); if(gl.length) html+='<div class="glossary"><b>略語のフルスペル</b><ul>'+gl.join('')+'</ul></div>';
     html+='</section>'; return html;
   }
+
+  function stripChoiceLinesForDisplay(ctx) {
+    ctx = String(ctx || '').replace(/\r/g, '');
+    var lines = ctx.split('\n');
+    var kept = [];
+    for (var i = 0; i < lines.length; i++) {
+      var s = lines[i].trim();
+      if (!s) {
+        if (kept.length && kept[kept.length - 1] !== '') kept.push('');
+        continue;
+      }
+      if (/^[1-9][\s\.．、:：]+/.test(s)) break;
+      if (/^[A-Ea-eＡ-Ｅａ-ｅ][\s\.．、:：]+/.test(s)) break;
+      if (/^[・･●○◆◇]\s*/.test(s)) break;
+      if (/(選択肢|選択肢群|以下の語句|次の用語|語群|当てはまる語句)/.test(s)) break;
+      s = s.split(/\s+1\s+.+?\s+2\s+/)[0].trim();
+      kept.push(s);
+    }
+    var stem = kept.join('\n').trim();
+    return stem.length >= 12 ? stem : ctx;
+  }
+
+  function displayContextForQuestion(q) {
+    var ctx = q && q.context ? String(q.context) : '';
+    if (q && String(q.setId || '').indexOf('exam_') === 0 && (q.type === 'single' || q.type === 'multi' || q.type === 'text')) {
+      return stripChoiceLinesForDisplay(ctx);
+    }
+    return ctx;
+  }
+
   function renderQuestion(){
     var q=currentQuestion(); var card=$('questionCard');
     if(!q){ $('progressText').textContent='0 / 0'; $('progressBar').style.width='0%'; card.innerHTML='<p class="prompt">表示できる問題がありません。</p>'; $('prevBtn').disabled=true; $('nextBtn').disabled=true; return; }
@@ -172,7 +202,7 @@
     var kind=q.type==='self'?'自己採点':(q.type==='text'?'記述・空欄':(q.type==='multi'?'複数選択':'単一選択'));
     var html='<div class="meta"><span class="pill">'+esc(q.setName)+'</span><span class="pill">'+esc(q.category)+'</span><span class="pill">'+kind+'</span><span class="pill">回答'+s.tries+'回</span><span class="pill">誤答'+s.wrong+'回</span><span class="pill">正答率'+rate+'</span></div>';
     html+='<p class="prompt">'+esc(q.prompt)+'</p>';
-    if(q.context) html+='<div class="context-block">'+esc(q.context)+'</div>';
+    var displayCtx=displayContextForQuestion(q); if(displayCtx) html+='<div class="context-block">'+esc(displayCtx)+'</div>';
     if(q.figures&&q.figures.length) html+=renderFigures(q.figures);
 
     if(q.type==='text') html+='<input id="textAnswer" type="text" autocomplete="off" placeholder="答えを入力">';
