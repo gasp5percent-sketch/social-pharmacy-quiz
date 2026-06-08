@@ -283,7 +283,23 @@
     $('resetHistoryBtn').addEventListener('click', resetHistory); $('exportBtn').addEventListener('click', exportHistory);
     $('importInput').addEventListener('change', function(){ importHistory(this.files&&this.files[0]); });
   }
-  function registerServiceWorker(){ if('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js').catch(function(){}); }
+  
+  function cleanupOldServiceWorkers(){
+    try {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs){
+          regs.forEach(function(reg){ reg.unregister(); });
+        }).catch(function(){});
+      }
+      if (window.caches) {
+        caches.keys().then(function(keys){
+          keys.forEach(function(key){ caches.delete(key); });
+        }).catch(function(){});
+      }
+    } catch(e) {}
+  }
+
+  function registerServiceWorker(){ cleanupOldServiceWorkers(); }
   function init(){ loadStats(); setupSetSelect(); setupCategorySelect(); bindEvents(); updateSummary(); registerServiceWorker(); }
   init();
 })();
