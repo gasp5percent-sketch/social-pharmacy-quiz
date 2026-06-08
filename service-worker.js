@@ -1,4 +1,4 @@
-const CACHE_NAME='social-pharmacy-exam-sets-v3';
+const CACHE_NAME='social-pharmacy-exam-sets-v4-context-trim';
 const ASSETS=[
   './',
   './index.html',
