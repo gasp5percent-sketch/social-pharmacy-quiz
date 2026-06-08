@@ -4,11 +4,30 @@
 
   var QUESTIONS = window.QUESTIONS || [];
   var LETTERS = 'アイウエオカキクケコサシスセソ';
-  var KEY = 'social_pharmacy_pwa_v1';
+  var KEY = 'social_pharmacy_pwa_v3_pdf_enhanced';
+  var OLD_KEYS = ['social_pharmacy_pwa_v1', 'sosha_v6_stats'];
+
+  var ABBR = {
+    'GLP': 'Good Laboratory Practice（医薬品の安全性に関する非臨床試験の実施基準）',
+    'GCP': 'Good Clinical Practice（医薬品の臨床試験の実施基準）',
+    'GMP': 'Good Manufacturing Practice（医薬品等の製造管理及び品質管理の基準）',
+    'GQP': 'Good Quality Practice（医薬品等の品質管理の基準）',
+    'GVP': 'Good Vigilance Practice（医薬品等の製造販売後安全管理の基準）',
+    'RMP': 'Risk Management Plan（医薬品リスク管理計画）',
+    'DPC': 'Diagnosis Procedure Combination（診断群分類包括評価）',
+    'CRO': 'Contract Research Organization（開発業務受託機関）',
+    'CRA': 'Clinical Research Associate（臨床開発モニター）',
+    'SMO': 'Site Management Organization（治験施設支援機関）',
+    'CRC': 'Clinical Research Coordinator（治験コーディネーター）',
+    'IRB': 'Institutional Review Board（治験審査委員会）',
+    'ICH': 'International Council for Harmonisation of Technical Requirements for Pharmaceuticals for Human Use（医薬品規制調和国際会議）',
+    'CJD': 'Creutzfeldt-Jakob Disease（クロイツフェルト・ヤコブ病）'
+  };
 
   var state = {
     category: 'all',
     mode: 'all',
+    search: '',
     shuffle: false,
     order: [],
     index: 0,
@@ -19,10 +38,8 @@
 
   function esc(s) {
     return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }
 
@@ -34,23 +51,56 @@
       if (code >= 0xFF01 && code <= 0xFF5E) out += String.fromCharCode(code - 0xFEE0);
       else out += s.charAt(i);
     }
-    return out
-      .replace(/[\s　]/g, '')
-      .replace(/＞/g, '>')
-      .replace(/＜/g, '<')
-      .replace(/・/g, '')
-      .replace(/,/g, '、')
-      .toLowerCase();
+    return out.replace(/[\s　]/g, '').replace(/＞/g, '>').replace(/＜/g, '<')
+      .replace(/・/g, '').replace(/,/g, '、').toLowerCase();
+  }
+
+  function emptyStats() {
+    return { tries: 0, correct: 0, wrong: 0, last: null, bookmarked: false };
+  }
+
+  function normalizeStat(s) {
+    if (!s) return null;
+    var n = emptyStats();
+    n.tries = Number(s.tries || 0);
+    n.correct = Number(s.correct || 0);
+    n.wrong = Number(s.wrong != null ? s.wrong : Math.max(0, n.tries - n.correct));
+    n.last = (s.last === true || s.last === false) ? s.last : null;
+    n.bookmarked = !!s.bookmarked;
+    return n;
   }
 
   function loadStats() {
-    try { state.stats = JSON.parse(localStorage.getItem(KEY) || '{}'); }
-    catch (e) { state.stats = {}; }
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) {
+        state.stats = JSON.parse(raw);
+      } else {
+        for (var i = 0; i < OLD_KEYS.length; i++) {
+          var old = localStorage.getItem(OLD_KEYS[i]);
+          if (old) {
+            state.stats = JSON.parse(old);
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      state.stats = {};
+    }
+    for (var id in state.stats) {
+      if (Object.prototype.hasOwnProperty.call(state.stats, id)) {
+        state.stats[id] = normalizeStat(state.stats[id]);
+      }
+    }
   }
 
   function saveStats() {
-    try { localStorage.setItem(KEY, JSON.stringify(state.stats)); }
-    catch (e) {}
+    try { localStorage.setItem(KEY, JSON.stringify(state.stats)); } catch (e) {}
+  }
+
+  function getStat(id) {
+    if (!state.stats[id]) state.stats[id] = emptyStats();
+    return state.stats[id];
   }
 
   function categories() {
@@ -74,28 +124,47 @@
     }
   }
 
+  function questionText(q) {
+    var parts = [q.category, q.prompt, q.explain, q.context || '', q.source || ''];
+    if (q.choices) parts = parts.concat(q.choices);
+    if (q.answers) parts = parts.concat(q.answers);
+    if (q.choiceExplanations) parts = parts.concat(q.choiceExplanations);
+    return parts.join(' ').toLowerCase();
+  }
+
   function makeOrder() {
     var arr = [];
+    var query = String(state.search || '').toLowerCase();
+
     for (var i = 0; i < QUESTIONS.length; i++) {
       var q = QUESTIONS[i];
       var s = state.stats[q.id];
       var ok = true;
 
       if (state.category !== 'all' && q.category !== state.category) ok = false;
-      if (state.mode === 'weak' && !(s && s.last === false)) ok = false;
-      if (state.mode === 'unseen' && s) ok = false;
+      if (state.mode === 'weak' && !(s && s.wrong > 0)) ok = false;
+      if (state.mode === 'lastWrong' && !(s && s.last === false)) ok = false;
+      if (state.mode === 'unseen' && s && s.tries > 0) ok = false;
+      if (state.mode === 'bookmark' && !(s && s.bookmarked)) ok = false;
       if (state.mode === 'text' && q.type !== 'text') ok = false;
       if (state.mode === 'select' && q.type === 'text') ok = false;
+      if (query && questionText(q).indexOf(query) < 0) ok = false;
 
       if (ok) arr.push(i);
+    }
+
+    if (state.mode === 'weak') {
+      arr.sort(function(a, b) {
+        var sa = state.stats[QUESTIONS[a].id] || emptyStats();
+        var sb = state.stats[QUESTIONS[b].id] || emptyStats();
+        return (sb.wrong || 0) - (sa.wrong || 0);
+      });
     }
 
     if (state.shuffle) {
       for (var j = arr.length - 1; j > 0; j--) {
         var k = Math.floor(Math.random() * (j + 1));
-        var temp = arr[j];
-        arr[j] = arr[k];
-        arr[k] = temp;
+        var temp = arr[j]; arr[j] = arr[k]; arr[k] = temp;
       }
     }
 
@@ -114,60 +183,100 @@
     $(name).classList.add('active');
   }
 
-  function updateSummary() {
-    var attempts = 0, correct = 0, weak = 0;
-
+  function statTotals() {
+    var attempts = 0, correct = 0, wrong = 0, weak = 0, bookmarked = 0;
     for (var id in state.stats) {
       if (Object.prototype.hasOwnProperty.call(state.stats, id)) {
-        attempts += state.stats[id].tries || 0;
-        correct += state.stats[id].correct || 0;
-        if (state.stats[id].last === false) weak += 1;
+        var s = normalizeStat(state.stats[id]);
+        attempts += s.tries || 0;
+        correct += s.correct || 0;
+        wrong += s.wrong || 0;
+        if ((s.wrong || 0) > 0) weak += 1;
+        if (s.bookmarked) bookmarked += 1;
       }
     }
+    return { attempts: attempts, correct: correct, wrong: wrong, weak: weak, bookmarked: bookmarked };
+  }
 
+  function updateSummary() {
+    var t = statTotals();
     $('totalCount').textContent = QUESTIONS.length;
-    $('totalAttempts').textContent = attempts;
-    $('totalRate').textContent = attempts ? Math.round(correct / attempts * 100) + '%' : '0%';
-    $('weakCount').textContent = weak;
+    $('totalAttempts').textContent = t.attempts;
+    $('totalWrong').textContent = t.wrong;
+    $('totalRate').textContent = t.attempts ? Math.round(t.correct / t.attempts * 100) + '%' : '0%';
     renderCategoryStats();
   }
 
   function renderCategoryStats() {
     var box = $('categoryStats');
-    var cats = categories().filter(function (x) { return x !== 'all'; });
+    var cats = categories().filter(function(x) { return x !== 'all'; });
     var html = '';
 
     for (var i = 0; i < cats.length; i++) {
-      var cat = cats[i];
-      var total = 0, done = 0, rateTry = 0, rateCorrect = 0;
-
+      var cat = cats[i], total = 0, done = 0, tries = 0, correct = 0, wrong = 0;
       for (var j = 0; j < QUESTIONS.length; j++) {
         var q = QUESTIONS[j];
         if (q.category !== cat) continue;
         total += 1;
         var s = state.stats[q.id];
-        if (s) {
+        if (s && s.tries > 0) {
           done += 1;
-          rateTry += s.tries || 0;
-          rateCorrect += s.correct || 0;
+          tries += s.tries || 0;
+          correct += s.correct || 0;
+          wrong += s.wrong || 0;
         }
       }
-
-      var rate = rateTry ? Math.round(rateCorrect / rateTry * 100) + '%' : '0%';
-      html += '<div class="cat-row"><div class="cat-row-top"><span>' + esc(cat) + '</span><span>' + done + '/' + total + '</span></div><small>正答率 ' + rate + '</small></div>';
+      var rate = tries ? Math.round(correct / tries * 100) + '%' : '0%';
+      html += '<div class="cat-row"><div class="cat-row-top"><span>' + esc(cat) + '</span><span>' + done + '/' + total + '</span></div><small>回答 ' + tries + '回 / 誤答 ' + wrong + '回 / 正答率 ' + rate + '</small></div>';
     }
-
     box.innerHTML = html;
   }
 
   function startQuiz() {
     state.category = $('categorySelect').value;
     state.mode = $('modeSelect').value;
+    state.search = $('searchInput').value || '';
     state.shuffle = $('shuffleToggle').checked;
     state.index = 0;
     makeOrder();
     showView('quizView');
     renderQuestion();
+  }
+
+  function glossaryItems(q) {
+    var text = questionText(q);
+    var items = [];
+    for (var key in ABBR) {
+      if (Object.prototype.hasOwnProperty.call(ABBR, key)) {
+        if (text.indexOf(key.toLowerCase()) >= 0 || text.indexOf(toFullWidth(key).toLowerCase()) >= 0) {
+          items.push('<li><b>' + esc(key) + '</b> = ' + esc(ABBR[key]) + '</li>');
+        }
+      }
+    }
+    return items;
+  }
+
+  function toFullWidth(s) {
+    return String(s).replace(/[A-Za-z0-9]/g, function(ch) {
+      return String.fromCharCode(ch.charCodeAt(0) + 0xFEE0);
+    });
+  }
+
+
+  function renderFigures(figures) {
+    var html = '<div class="figure-list">';
+    for (var i = 0; i < figures.length; i++) {
+      var f = figures[i];
+      html += '<figure class="figure-block">';
+      html += '<figcaption>' + esc(f.title || '図表') + '</figcaption>';
+      html += '<a href="' + esc(f.src) + '" target="_blank" rel="noopener">';
+      html += '<img src="' + esc(f.src) + '" alt="' + esc(f.title || '図表') + '" loading="lazy">';
+      html += '</a>';
+      if (f.note) html += '<p class="figure-note">' + esc(f.note) + '</p>';
+      html += '</figure>';
+    }
+    html += '</div>';
+    return html;
   }
 
   function renderQuestion() {
@@ -178,6 +287,8 @@
       $('progressText').textContent = '0 / 0';
       $('progressBar').style.width = '0%';
       card.innerHTML = '<p class="prompt">表示できる問題がありません。</p>';
+      $('prevBtn').disabled = true;
+      $('nextBtn').disabled = true;
       return;
     }
 
@@ -186,15 +297,26 @@
 
     card.className = 'question-card';
     var kindLabel = q.type === 'text' ? '記述・空欄' : (q.type === 'multi' ? '複数選択' : '単一選択');
-    var s = state.stats[q.id];
+    var s = state.stats[q.id] || emptyStats();
+    var qRate = s.tries ? Math.round(s.correct / s.tries * 100) + '%' : '未回答';
 
     var html = '';
     html += '<div class="meta">';
     html += '<span class="pill">' + esc(q.category) + '</span>';
     html += '<span class="pill">' + kindLabel + '</span>';
-    html += '<span class="pill">' + (s ? s.tries : 0) + '回</span>';
+    html += '<span class="pill">回答' + (s.tries || 0) + '回</span>';
+    html += '<span class="pill">誤答' + (s.wrong || 0) + '回</span>';
+    html += '<span class="pill">正答率' + qRate + '</span>';
     html += '</div>';
     html += '<p class="prompt">' + esc(q.prompt) + '</p>';
+
+    if (q.context) {
+      html += '<div class="context-block">' + esc(q.context) + '</div>';
+    }
+
+    if (q.figures && q.figures.length) {
+      html += renderFigures(q.figures);
+    }
 
     if (q.type === 'text') {
       html += '<input id="textAnswer" type="text" autocomplete="off" placeholder="答えを入力">';
@@ -214,7 +336,10 @@
     }
 
     html += '<div id="result" class="result"></div>';
+    html += '<div class="actions-row">';
     html += '<button id="answerToggle" class="answer-toggle" type="button">答え・解説を見る</button>';
+    html += '<button id="bookmarkBtn" class="' + (s.bookmarked ? 'bookmark-on ' : '') + 'secondary-btn" type="button">' + (s.bookmarked ? '★ ブックマーク中' : '☆ ブックマーク') + '</button>';
+    html += '</div>';
     html += answerPanelHtml(q);
 
     card.innerHTML = html;
@@ -223,6 +348,17 @@
       var panel = document.querySelector('.answer-panel');
       panel.classList.toggle('show');
     });
+
+    $('bookmarkBtn').addEventListener('click', function () {
+      var st = getStat(q.id);
+      st.bookmarked = !st.bookmarked;
+      saveStats();
+      renderQuestion();
+      updateSummary();
+    });
+
+    $('prevBtn').disabled = state.index <= 0;
+    $('nextBtn').disabled = state.index >= state.order.length - 1;
   }
 
   function answerPanelHtml(q) {
@@ -246,6 +382,11 @@
       }
     }
 
+    var gl = glossaryItems(q);
+    if (gl.length) {
+      html += '<div class="glossary"><b>略語のフルスペル</b><ul>' + gl.join('') + '</ul></div>';
+    }
+
     html += '</section>';
     return html;
   }
@@ -254,7 +395,7 @@
     var checked = document.querySelectorAll('.choice-row input:checked');
     var arr = [];
     for (var i = 0; i < checked.length; i++) arr.push(Number(checked[i].value));
-    return arr.sort(function (a, b) { return a - b; });
+    return arr.sort(function(a, b) { return a - b; });
   }
 
   function sameArray(a, b) {
@@ -287,42 +428,54 @@
         result.textContent = '選択肢を選んでください。';
         return;
       }
-      var answer = q.answer.slice().sort(function (a, b) { return a - b; });
+      var answer = q.answer.slice().sort(function(a, b) { return a - b; });
       ok = sameArray(selected, answer);
       $('questionCard').classList.add('graded');
       result.className = 'result ' + (ok ? 'ok' : 'ng');
       result.textContent = ok ? '正解です。' : '不正解です。緑が正解、赤が選んだ誤答です。';
     }
 
-    if (!state.stats[q.id]) state.stats[q.id] = { tries: 0, correct: 0, last: null };
-    state.stats[q.id].tries += 1;
-    if (ok) state.stats[q.id].correct += 1;
-    state.stats[q.id].last = ok;
+    var st = getStat(q.id);
+    st.tries += 1;
+    if (ok) st.correct += 1;
+    else st.wrong += 1;
+    st.last = ok;
     saveStats();
 
     var panel = document.querySelector('.answer-panel');
     if (panel) panel.classList.add('show');
 
     updateSummary();
+    renderQuestion();
+    var res = $('result');
+    if (res) {
+      res.className = 'result ' + (ok ? 'ok' : 'ng');
+      res.textContent = ok ? '正解です。' : '不正解です。答え・解説を確認してください。';
+    }
+    var p = document.querySelector('.answer-panel');
+    if (p) p.classList.add('show');
+    if (q.type !== 'text') $('questionCard').classList.add('graded');
   }
 
   function renderQuestionList() {
     var box = $('questionList');
+    var query = String($('listSearchInput').value || '').toLowerCase();
     var html = '';
 
     for (var i = 0; i < QUESTIONS.length; i++) {
       var q = QUESTIONS[i];
-      var s = state.stats[q.id];
-      var tries = s ? s.tries : 0;
-      var last = s ? (s.last ? '直近正解' : '直近不正解') : '未採点';
-
+      if (query && questionText(q).indexOf(query) < 0) continue;
+      var s = state.stats[q.id] || emptyStats();
+      var rate = s.tries ? Math.round(s.correct / s.tries * 100) + '%' : '未回答';
+      var last = s.tries ? (s.last ? '直近正解' : '直近不正解') : '未採点';
+      var star = s.bookmarked ? '★ ' : '';
       html += '<button class="list-item" type="button" data-index="' + i + '">';
-      html += '<b>No.' + q.no + ' ' + esc(q.prompt) + '</b>';
-      html += '<small>' + esc(q.category) + ' / ' + tries + '回 / ' + last + '</small>';
+      html += '<b>' + star + 'No.' + q.no + ' ' + esc(q.prompt) + '</b>';
+      html += '<small>' + esc(q.category) + ' / 回答 ' + (s.tries || 0) + '回 / 誤答 ' + (s.wrong || 0) + '回 / 正答率 ' + rate + ' / ' + last + '</small>';
       html += '</button>';
     }
 
-    box.innerHTML = html;
+    box.innerHTML = html || '<div class="panel">該当する問題がありません。</div>';
 
     var buttons = box.querySelectorAll('.list-item');
     for (var j = 0; j < buttons.length; j++) {
@@ -376,6 +529,7 @@
     reader.onload = function () {
       try {
         state.stats = JSON.parse(String(reader.result || '{}'));
+        for (var id in state.stats) state.stats[id] = normalizeStat(state.stats[id]);
         saveStats();
         updateSummary();
         alert('履歴を読み込みました。');
@@ -403,6 +557,8 @@
     $('prevBtn').addEventListener('click', prevQuestion);
     $('nextBtn').addEventListener('click', nextQuestion);
     $('gradeBtn').addEventListener('click', gradeCurrent);
+
+    $('listSearchInput').addEventListener('input', renderQuestionList);
 
     $('settingsBtn').addEventListener('click', function () {
       $('settingsDialog').showModal();

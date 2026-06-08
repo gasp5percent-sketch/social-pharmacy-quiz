@@ -1,5 +1,4 @@
-
-const CACHE_NAME = 'social-pharmacy-pwa-v1';
+const CACHE_NAME = 'social-pharmacy-pwa-v4-figures-complete';
 const ASSETS = [
   './',
   './index.html',
@@ -8,7 +7,14 @@ const ASSETS = [
   './app.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './figures/q10_medical_insurance_system.png',
+  './figures/q10_national_medical_expense_charts.png',
+  './figures/q11_clinical_trial_org.png',
+  './figures/q11_priority_review_text.png',
+  './figures/q7_drug_harm_table.png',
+  './figures/q9_insurance_table_1.png',
+  './figures/q9_insurance_table_2.png'
 ];
 
 self.addEventListener('install', event => {
@@ -26,7 +32,5 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request))
-  );
+  event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
 });

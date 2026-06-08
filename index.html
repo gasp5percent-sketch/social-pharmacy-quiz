@@ -17,7 +17,7 @@
   <header class="app-header">
     <div>
       <h1>社会薬学総論</h1>
-      <p>選択問題・記述問題・空欄問題</p>
+      <p>PDF対応強化版</p>
     </div>
     <button id="settingsBtn" class="icon-btn" type="button" aria-label="設定">⚙</button>
   </header>
@@ -26,9 +26,9 @@
     <section id="homeView" class="view active">
       <div class="summary-grid">
         <div class="summary-card"><b id="totalCount">0</b><span>問題数</span></div>
-        <div class="summary-card"><b id="totalAttempts">0</b><span>採点回数</span></div>
+        <div class="summary-card"><b id="totalAttempts">0</b><span>回答</span></div>
+        <div class="summary-card"><b id="totalWrong">0</b><span>誤答</span></div>
         <div class="summary-card"><b id="totalRate">0%</b><span>正答率</span></div>
-        <div class="summary-card"><b id="weakCount">0</b><span>苦手</span></div>
       </div>
 
       <div class="panel">
@@ -38,11 +38,16 @@
         <label class="label" for="modeSelect">出題モード</label>
         <select id="modeSelect">
           <option value="all">全問題</option>
-          <option value="weak">苦手・直近不正解</option>
+          <option value="weak">苦手・誤答あり</option>
+          <option value="lastWrong">直近不正解</option>
           <option value="unseen">未採点</option>
+          <option value="bookmark">ブックマーク</option>
           <option value="text">記述・空欄のみ</option>
           <option value="select">選択問題のみ</option>
         </select>
+
+        <label class="label" for="searchInput">検索</label>
+        <input id="searchInput" type="text" placeholder="語句・略語・カテゴリで検索">
 
         <label class="switch-row">
           <input id="shuffleToggle" type="checkbox">
@@ -81,6 +86,9 @@
       <div class="quiz-top">
         <button id="listHomeBtn" class="secondary-btn compact" type="button">ホーム</button>
         <h2>問題一覧</h2>
+      </div>
+      <div class="panel">
+        <input id="listSearchInput" type="text" placeholder="一覧内検索">
       </div>
       <div id="questionList" class="question-list"></div>
     </section>
