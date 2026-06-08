@@ -1,4 +1,4 @@
-const CACHE_NAME='social-pharmacy-integrated-v1';
+const CACHE_NAME='social-pharmacy-r8-autograded-v2';
 const ASSETS=[
   './',
   './index.html',

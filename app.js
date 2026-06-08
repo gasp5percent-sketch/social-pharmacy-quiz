@@ -5,7 +5,7 @@
   var QUESTIONS = window.QUESTIONS || [];
   var SETS = window.SETS || [];
   var LETTERS = 'アイウエオカキクケコサシスセソ';
-  var KEY = 'social_pharmacy_integrated_v1';
+  var KEY = 'social_pharmacy_integrated_autograded_r8_v2';
 
   var ABBR = {
     'GLP':'Good Laboratory Practice（医薬品の安全性に関する非臨床試験の実施基準）',
@@ -15,6 +15,10 @@
     'GVP':'Good Vigilance Practice（医薬品等の製造販売後安全管理の基準）',
     'RMP':'Risk Management Plan（医薬品リスク管理計画）',
     'DPC':'Diagnosis Procedure Combination（診断群分類包括評価）',
+    'ICER':'Incremental Cost-Effectiveness Ratio（増分費用効果比）',
+    'QALY':'Quality Adjusted Life Year（質調整生存年）',
+    'PMS':'Post-Marketing Surveillance（製造販売後調査）',
+    'GPSP':'Good Post-Marketing Study Practice（医薬品の製造販売後の調査及び試験の実施基準）',
     'CRO':'Contract Research Organization（開発業務受託機関）',
     'CRA':'Clinical Research Associate（臨床開発モニター）',
     'SMO':'Site Management Organization（治験施設支援機関）',
@@ -151,8 +155,11 @@
       html+='<p><b>正解：</b>'+esc((q.answers||[]).join('／'))+'</p><p>'+esc(q.explain||'')+'</p>';
     } else {
       var ans=(q.answer||[]).map(function(i){return LETTERS.charAt(i);});
-      html+='<p><b>正解：</b>'+esc(ans.join('、'))+'</p><p>'+esc(q.explain||'')+'</p><div class="option-title">選択肢ごとの解説</div>';
-      (q.choices||[]).forEach(function(c,j){ var ok=(q.answer||[]).indexOf(j)>=0; html+='<div class="option-exp"><p><b>'+LETTERS.charAt(j)+'. '+esc(c)+'</b> '+(ok?'<span class="badge-ok">正しい</span>':'<span class="badge-ng">誤り</span>')+'</p><p>'+esc((q.choiceExplanations||[])[j]||'')+'</p></div>'; });
+      html+='<p><b>正解：</b>'+esc(ans.join('、'))+'</p><p>'+esc(q.explain||'')+'</p>';
+      if(q.choices && q.choices.length){
+        html+='<div class="option-title">選択肢ごとの解説</div>';
+        (q.choices||[]).forEach(function(c,j){ var ok=(q.answer||[]).indexOf(j)>=0; html+='<div class="option-exp"><p><b>'+LETTERS.charAt(j)+'. '+esc(c)+'</b> '+(ok?'<span class="badge-ok">正しい</span>':'<span class="badge-ng">誤り</span>')+'</p><p>'+esc((q.choiceExplanations||[])[j]||'')+'</p></div>'; });
+      }
     }
     var gl=glossaryItems(q); if(gl.length) html+='<div class="glossary"><b>略語のフルスペル</b><ul>'+gl.join('')+'</ul></div>';
     html+='</section>'; return html;
@@ -197,8 +204,8 @@
   function gradeSelf(ok){
     var q=currentQuestion(); if(!q) return;
     var st=getStat(q.id); st.tries++; if(ok) st.correct++; else st.wrong++; st.last=ok; saveStats(); updateSummary();
-    var res=$('result'); res.className='result '+(ok?'ok':'ng'); res.textContent=ok?'正解として記録しました。':'不正解として記録しました。';
     renderQuestion(); document.querySelector('.answer-panel').classList.add('show');
+    var res=$('result'); res.className='result '+(ok?'ok':'ng'); res.textContent=ok?'正解として記録しました。':'不正解として記録しました。';
   }
   function gradeCurrent(){
     var q=currentQuestion(); if(!q)return;
@@ -232,7 +239,7 @@
   function prevQuestion(){ if(state.index>0){state.index--; renderQuestion(); window.scrollTo(0,0);} }
   function nextQuestion(){ if(state.index<state.order.length-1){state.index++; renderQuestion(); window.scrollTo(0,0);} }
   function resetHistory(){ if(!confirm('履歴を削除しますか？'))return; state.stats={}; saveStats(); updateSummary(); renderQuestion(); }
-  function exportHistory(){ var blob=new Blob([JSON.stringify(state.stats,null,2)],{type:'application/json'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='social_pharmacy_integrated_history.json'; a.click(); URL.revokeObjectURL(url); }
+  function exportHistory(){ var blob=new Blob([JSON.stringify(state.stats,null,2)],{type:'application/json'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='social_pharmacy_autograded_history.json'; a.click(); URL.revokeObjectURL(url); }
   function importHistory(file){ if(!file)return; var reader=new FileReader(); reader.onload=function(){ try{ state.stats=JSON.parse(String(reader.result||'{}')); for(var id in state.stats) state.stats[id]=normalizeStat(state.stats[id]); saveStats(); updateSummary(); alert('履歴を読み込みました。'); }catch(e){ alert('読み込みに失敗しました。'); } }; reader.readAsText(file); }
   function bindEvents(){
     $('setSelect').addEventListener('change', function(){ state.set=this.value; setupCategorySelect(); updateSummary(); });
