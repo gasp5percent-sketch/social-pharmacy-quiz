@@ -1,0 +1,22 @@
+{
+  "name": "社会薬学総論 演習アプリ",
+  "short_name": "社会薬学演習",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#2563eb",
+  "description": "社会薬学総論の選択問題・記述問題・空欄問題を演習するアプリ",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

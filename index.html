@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="社会薬学演習">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <title>社会薬学総論 演習アプリ</title>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>社会薬学総論</h1>
+      <p>選択問題・記述問題・空欄問題</p>
+    </div>
+    <button id="settingsBtn" class="icon-btn" type="button" aria-label="設定">⚙</button>
+  </header>
+
+  <main>
+    <section id="homeView" class="view active">
+      <div class="summary-grid">
+        <div class="summary-card"><b id="totalCount">0</b><span>問題数</span></div>
+        <div class="summary-card"><b id="totalAttempts">0</b><span>採点回数</span></div>
+        <div class="summary-card"><b id="totalRate">0%</b><span>正答率</span></div>
+        <div class="summary-card"><b id="weakCount">0</b><span>苦手</span></div>
+      </div>
+
+      <div class="panel">
+        <label class="label" for="categorySelect">カテゴリ</label>
+        <select id="categorySelect"></select>
+
+        <label class="label" for="modeSelect">出題モード</label>
+        <select id="modeSelect">
+          <option value="all">全問題</option>
+          <option value="weak">苦手・直近不正解</option>
+          <option value="unseen">未採点</option>
+          <option value="text">記述・空欄のみ</option>
+          <option value="select">選択問題のみ</option>
+        </select>
+
+        <label class="switch-row">
+          <input id="shuffleToggle" type="checkbox">
+          <span>ランダム順</span>
+        </label>
+
+        <button id="startBtn" class="primary-btn" type="button">演習を開始</button>
+        <button id="listBtn" class="secondary-btn" type="button">問題一覧</button>
+      </div>
+
+      <div class="panel">
+        <h2>カテゴリ別進捗</h2>
+        <div id="categoryStats" class="category-stats"></div>
+      </div>
+    </section>
+
+    <section id="quizView" class="view">
+      <div class="quiz-top">
+        <button id="backHomeBtn" class="secondary-btn compact" type="button">ホーム</button>
+        <div class="progress-wrap">
+          <div id="progressText">0 / 0</div>
+          <div class="progress"><div id="progressBar"></div></div>
+        </div>
+      </div>
+
+      <article id="questionCard" class="question-card"></article>
+
+      <nav class="bottom-nav">
+        <button id="prevBtn" class="secondary-btn" type="button">← 前</button>
+        <button id="gradeBtn" class="primary-btn" type="button">採点</button>
+        <button id="nextBtn" class="secondary-btn" type="button">次 →</button>
+      </nav>
+    </section>
+
+    <section id="listView" class="view">
+      <div class="quiz-top">
+        <button id="listHomeBtn" class="secondary-btn compact" type="button">ホーム</button>
+        <h2>問題一覧</h2>
+      </div>
+      <div id="questionList" class="question-list"></div>
+    </section>
+  </main>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" class="dialog-card">
+      <h2>設定</h2>
+      <button id="resetHistoryBtn" class="danger-btn" type="button">履歴をリセット</button>
+      <button id="exportBtn" class="secondary-btn" type="button">履歴を書き出し</button>
+      <label class="import-label">
+        履歴を読み込み
+        <input id="importInput" type="file" accept="application/json">
+      </label>
+      <button class="primary-btn" value="close">閉じる</button>
+    </form>
+  </dialog>
+
+  <script src="./questions.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
