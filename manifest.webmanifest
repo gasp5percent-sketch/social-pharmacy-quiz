@@ -1,12 +1,12 @@
 {
-  "name": "社会薬学総論 演習アプリ",
+  "name": "社会薬学総論 統合演習アプリ",
   "short_name": "社会薬学演習",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f5f7fb",
   "theme_color": "#2563eb",
-  "description": "社会薬学総論の選択問題・記述問題・空欄問題を演習するPDF対応強化版",
+  "description": "社会薬学総論の複数問題セットを演習するWebアプリ",
   "icons": [
     {
       "src": "./icons/icon-192.png",

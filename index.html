@@ -11,13 +11,13 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="stylesheet" href="./styles.css">
-  <title>社会薬学総論 選択問題文脈表示版</title>
+  <title>社会薬学総論 統合演習アプリ</title>
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>社会薬学総論</h1>
-      <p>選択問題文脈表示版</p>
+      <p>複数問題セット統合版</p>
     </div>
     <button id="settingsBtn" class="icon-btn" type="button" aria-label="設定">⚙</button>
   </header>
@@ -32,6 +32,9 @@
       </div>
 
       <div class="panel">
+        <label class="label" for="setSelect">問題セット</label>
+        <select id="setSelect"></select>
+
         <label class="label" for="categorySelect">カテゴリ</label>
         <select id="categorySelect"></select>
 
@@ -40,10 +43,12 @@
           <option value="all">全問題</option>
           <option value="weak">苦手・誤答あり</option>
           <option value="lastWrong">直近不正解</option>
-          <option value="unseen">未採点</option>
+          <option value="unseen">未回答</option>
           <option value="bookmark">ブックマーク</option>
           <option value="text">記述・空欄のみ</option>
           <option value="select">選択問題のみ</option>
+          <option value="self">R8ページ問題のみ</option>
+          <option value="figure">図表つきのみ</option>
         </select>
 
         <label class="label" for="searchInput">検索</label>
@@ -56,6 +61,11 @@
 
         <button id="startBtn" class="primary-btn" type="button">演習を開始</button>
         <button id="listBtn" class="secondary-btn" type="button">問題一覧</button>
+      </div>
+
+      <div class="panel">
+        <h2>セット別進捗</h2>
+        <div id="setStats" class="category-stats"></div>
       </div>
 
       <div class="panel">
@@ -107,7 +117,7 @@
     </form>
   </dialog>
 
-  <script src="./questions.js"></script>
+  <script src="./data/questions.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

@@ -1,36 +1,104 @@
-const CACHE_NAME = 'social-pharmacy-pwa-v6-context-figures-fixed';
-const ASSETS = [
+const CACHE_NAME='social-pharmacy-integrated-v1';
+const ASSETS=[
   './',
   './index.html',
   './styles.css',
-  './questions.js',
   './app.js',
+  './data/questions.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './figures/q10_medical_insurance_system.png',
-  './figures/q10_national_medical_expense_charts.png',
-  './figures/q11_clinical_trial_org.png',
-  './figures/q11_priority_review_text.png',
-  './figures/q7_drug_harm_table.png',
-  './figures/q9_insurance_table_1.png',
-  './figures/q9_insurance_table_2.png'
+  './figures/set1/q7_drug_harm_table.png',
+  './figures/set1/q9_insurance_table_1.png',
+  './figures/set1/q9_insurance_table_2.png',
+  './figures/set1/q10_national_medical_expense_charts.png',
+  './figures/set1/q10_medical_insurance_system.png',
+  './figures/set1/q11_clinical_trial_org.png',
+  './figures/set1/q11_priority_review_text.png',
+  './figures/r8/r8_page_002.webp',
+  './figures/r8/r8_page_003.webp',
+  './figures/r8/r8_page_004.webp',
+  './figures/r8/r8_page_005.webp',
+  './figures/r8/r8_page_006.webp',
+  './figures/r8/r8_page_007.webp',
+  './figures/r8/r8_page_008.webp',
+  './figures/r8/r8_page_009.webp',
+  './figures/r8/r8_page_010.webp',
+  './figures/r8/r8_page_011.webp',
+  './figures/r8/r8_page_012.webp',
+  './figures/r8/r8_page_013.webp',
+  './figures/r8/r8_page_014.webp',
+  './figures/r8/r8_page_015.webp',
+  './figures/r8/r8_page_016.webp',
+  './figures/r8/r8_page_017.webp',
+  './figures/r8/r8_page_018.webp',
+  './figures/r8/r8_page_019.webp',
+  './figures/r8/r8_page_020.webp',
+  './figures/r8/r8_page_021.webp',
+  './figures/r8/r8_page_022.webp',
+  './figures/r8/r8_page_023.webp',
+  './figures/r8/r8_page_024.webp',
+  './figures/r8/r8_page_025.webp',
+  './figures/r8/r8_page_026.webp',
+  './figures/r8/r8_page_027.webp',
+  './figures/r8/r8_page_028.webp',
+  './figures/r8/r8_page_029.webp',
+  './figures/r8/r8_page_030.webp',
+  './figures/r8/r8_page_031.webp',
+  './figures/r8/r8_page_032.webp',
+  './figures/r8/r8_page_033.webp',
+  './figures/r8/r8_page_034.webp',
+  './figures/r8/r8_page_035.webp',
+  './figures/r8/r8_page_036.webp',
+  './figures/r8/r8_page_037.webp',
+  './figures/r8/r8_page_038.webp',
+  './figures/r8/r8_page_039.webp',
+  './figures/r8/r8_page_040.webp',
+  './figures/r8/r8_page_041.webp',
+  './figures/r8/r8_page_042.webp',
+  './figures/r8/r8_page_043.webp',
+  './figures/r8/r8_page_044.webp',
+  './figures/r8/r8_page_045.webp',
+  './figures/r8/r8_page_046.webp',
+  './figures/r8/r8_page_047.webp',
+  './figures/r8/r8_page_048.webp',
+  './figures/r8/r8_page_049.webp',
+  './figures/r8/r8_page_050.webp',
+  './figures/r8/r8_page_051.webp',
+  './figures/r8/r8_page_052.webp',
+  './figures/r8/r8_page_053.webp',
+  './figures/r8/r8_page_054.webp',
+  './figures/r8/r8_page_055.webp',
+  './figures/r8/r8_page_056.webp',
+  './figures/r8/r8_page_057.webp',
+  './figures/r8/r8_page_058.webp',
+  './figures/r8/r8_page_059.webp',
+  './figures/r8/r8_page_060.webp',
+  './figures/r8/r8_page_061.webp',
+  './figures/r8/r8_page_062.webp',
+  './figures/r8/r8_page_063.webp',
+  './figures/r8/r8_page_064.webp',
+  './figures/r8/r8_page_065.webp',
+  './figures/r8/r8_page_066.webp',
+  './figures/r8/r8_page_067.webp',
+  './figures/r8/r8_page_068.webp',
+  './figures/r8/r8_page_069.webp',
+  './figures/r8/r8_page_070.webp',
+  './figures/r8/r8_page_071.webp',
+  './figures/r8/r8_page_072.webp',
+  './figures/r8/r8_page_073.webp'
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
   self.skipWaiting();
 });
-
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.map(key => {
-      if (key !== CACHE_NAME) return caches.delete(key);
-    })))
-  );
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.map(key => {
+    if (key !== CACHE_NAME) return caches.delete(key);
+  }))));
   self.clients.claim();
 });
-
 self.addEventListener('fetch', event => {
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
 });
