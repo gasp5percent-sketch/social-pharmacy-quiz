@@ -28,7 +28,7 @@
     'CJD':'Creutzfeldt-Jakob Disease（クロイツフェルト・ヤコブ病）'
   };
 
-  var state = { set:'all', category:'all', mode:'all', search:'', shuffle:false, order:[], index:0, stats:{} };
+  var state = { set:'all', category:'all', mode:'all', search:'', shuffle:false, order:[], index:0, stats:{}, mock:{active:false, finished:false, answers:{}, result:null, lastConfig:null} };
 
   function $(id){ return document.getElementById(id); }
   function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
@@ -196,27 +196,78 @@
 
   function renderQuestion(){
     var q=currentQuestion(); var card=$('questionCard');
-    if(!q){ $('progressText').textContent='0 / 0'; $('progressBar').style.width='0%'; card.innerHTML='<p class="prompt">表示できる問題がありません。</p>'; $('prevBtn').disabled=true; $('nextBtn').disabled=true; return; }
-    $('progressText').textContent=(state.index+1)+' / '+state.order.length; $('progressBar').style.width=((state.index+1)/state.order.length*100)+'%';
-    card.className='question-card'; var s=state.stats[q.id]||emptyStats(); var rate=s.tries?Math.round(s.correct/s.tries*100)+'%':'未回答';
-    var kind=q.type==='self'?'自己採点':(q.type==='text'?'記述・空欄':(q.type==='multi'?'複数選択':'単一選択'));
-    var html='<div class="meta"><span class="pill">'+esc(q.setName)+'</span><span class="pill">'+esc(q.category)+'</span><span class="pill">'+kind+'</span><span class="pill">回答'+s.tries+'回</span><span class="pill">誤答'+s.wrong+'回</span><span class="pill">正答率'+rate+'</span></div>';
-    html+='<p class="prompt">'+esc(q.prompt)+'</p>';
-    var displayCtx=displayContextForQuestion(q); if(displayCtx) html+='<div class="context-block">'+esc(displayCtx)+'</div>';
-    if(q.figures&&q.figures.length) html+=renderFigures(q.figures);
+    var inMock=state.mock && state.mock.active && !state.mock.finished;
 
-    if(q.type==='text') html+='<input id="textAnswer" type="text" autocomplete="off" placeholder="答えを入力">';
-    else if(q.type==='self') html+='<textarea id="selfMemo" placeholder="自分の解答メモを入力してから「答えを見る」を押してください"></textarea>';
-    else {
-      var inputType=q.type==='multi'?'checkbox':'radio'; html+='<div class="choices">';
-      (q.choices||[]).forEach(function(c,i){ var correct=(q.answer||[]).indexOf(i)>=0; html+='<div class="choice-row"><input id="choice'+i+'" name="answer" type="'+inputType+'" value="'+i+'"><label class="choice '+(correct?'correct':'wrong')+'" for="choice'+i+'"><span class="letter">'+LETTERS.charAt(i)+'</span><span>'+esc(c)+'</span></label></div>'; });
+    if(!q){
+      $('progressText').textContent='0 / 0';
+      $('progressBar').style.width='0%';
+      card.innerHTML='<p class="prompt">表示できる問題がありません。</p>';
+      $('prevBtn').disabled=true;
+      $('nextBtn').disabled=true;
+      $('gradeBtn').disabled=true;
+      return;
+    }
+
+    $('progressText').textContent=(state.index+1)+' / '+state.order.length;
+    $('progressBar').style.width=((state.index+1)/state.order.length*100)+'%';
+    card.className='question-card'+(inMock?' mock-active':'');
+
+    var s=state.stats[q.id]||emptyStats();
+    var rate=s.tries?Math.round(s.correct/s.tries*100)+'%':'未回答';
+    var kind=q.type==='self'?'自己採点':(q.type==='text'?'記述・空欄':(q.type==='multi'?'複数選択':'単一選択'));
+
+    var html='<div class="meta"><span class="pill">'+esc(q.setName)+'</span><span class="pill">'+esc(q.category)+'</span><span class="pill">'+kind+'</span>';
+    if(inMock) html+='<span class="pill mock-pill">模擬テスト中</span>';
+    html+='<span class="pill">回答'+s.tries+'回</span><span class="pill">誤答'+s.wrong+'回</span><span class="pill">正答率'+rate+'</span></div>';
+
+    html+='<p class="prompt">'+esc(q.prompt)+'</p>';
+    var displayCtx=displayContextForQuestion(q);
+    if(displayCtx) html+='<div class="context-block">'+esc(displayCtx)+'</div>';
+
+    if(q.figures&&q.figures.length){
+      if(inMock) html+='<div class="mock-hidden-note">模擬テスト中はPDF原文画像を非表示にしています。結果画面・通常演習では確認できます。</div>';
+      else html+=renderFigures(q.figures);
+    }
+
+    if(q.type==='text'){
+      html+='<input id="textAnswer" type="text" autocomplete="off" placeholder="答えを入力">';
+    } else if(q.type==='self'){
+      html+='<textarea id="selfMemo" placeholder="自分の解答メモを入力してから「答えを見る」を押してください"></textarea>';
+    } else {
+      var inputType=q.type==='multi'?'checkbox':'radio';
+      var saved=(inMock && state.mock.answers && state.mock.answers[q.id]) ? state.mock.answers[q.id] : [];
+      html+='<div class="choices">';
+      (q.choices||[]).forEach(function(c,i){
+        var correct=(q.answer||[]).indexOf(i)>=0;
+        var checked=(saved.indexOf(i)>=0)?' checked':'';
+        html+='<div class="choice-row"><input id="choice'+i+'" name="answer" type="'+inputType+'" value="'+i+'"'+checked+'><label class="choice '+(correct?'correct':'wrong')+'" for="choice'+i+'"><span class="letter">'+LETTERS.charAt(i)+'</span><span>'+esc(c)+'</span></label></div>';
+      });
       html+='</div>';
     }
-    html+='<div id="result" class="result"></div><div class="actions-row"><button id="answerToggle" class="answer-toggle" type="button">'+(q.type==='self'?'答えを見る':'答え・解説を見る')+'</button><button id="bookmarkBtn" class="'+(s.bookmarked?'bookmark-on ':'')+'secondary-btn" type="button">'+(s.bookmarked?'★ ブックマーク中':'☆ ブックマーク')+'</button></div>'+answerPanelHtml(q);
+
+    if(inMock){
+      var savedNow=state.mock.answers && state.mock.answers[q.id] && state.mock.answers[q.id].length;
+      html+='<div id="result" class="result '+(savedNow?'ok':'')+'">'+(savedNow?'回答を保存済みです。':'')+'</div>';
+      html+='<div class="mock-note">模擬テスト中です。解答・解説は最後の結果画面で表示します。回答後は「次へ」、最後の問題では「結果へ」を押してください。</div>';
+    } else {
+      html+='<div id="result" class="result"></div><div class="actions-row"><button id="answerToggle" class="answer-toggle" type="button">'+(q.type==='self'?'答えを見る':'答え・解説を見る')+'</button><button id="bookmarkBtn" class="'+(s.bookmarked?'bookmark-on ':'')+'secondary-btn" type="button">'+(s.bookmarked?'★ ブックマーク中':'☆ ブックマーク')+'</button></div>'+answerPanelHtml(q);
+    }
+
     card.innerHTML=html;
 
-    $('answerToggle').addEventListener('click', function(){ document.querySelector('.answer-panel').classList.toggle('show'); });
-    $('bookmarkBtn').addEventListener('click', function(){ var st=getStat(q.id); st.bookmarked=!st.bookmarked; saveStats(); renderQuestion(); updateSummary(); });
+    if(inMock){
+      $('gradeBtn').disabled=false;
+      $('gradeBtn').textContent='回答を保存';
+      $('prevBtn').disabled=state.index<=0;
+      $('nextBtn').disabled=false;
+      $('nextBtn').textContent=state.index>=state.order.length-1?'結果へ':'次 →';
+      return;
+    }
+
+    $('nextBtn').textContent='次 →';
+    if($('answerToggle')) $('answerToggle').addEventListener('click', function(){ document.querySelector('.answer-panel').classList.toggle('show'); });
+    if($('bookmarkBtn')) $('bookmarkBtn').addEventListener('click', function(){ var st=getStat(q.id); st.bookmarked=!st.bookmarked; saveStats(); renderQuestion(); updateSummary(); });
+
     if(q.type==='self'){
       $('gradeBtn').textContent='答えを見る';
       setTimeout(function(){
@@ -227,10 +278,211 @@
     } else {
       $('gradeBtn').textContent='採点';
     }
-    $('prevBtn').disabled=state.index<=0; $('nextBtn').disabled=state.index>=state.order.length-1;
+    $('gradeBtn').disabled=false;
+    $('prevBtn').disabled=state.index<=0;
+    $('nextBtn').disabled=state.index>=state.order.length-1;
   }
+  
   function selectedValues(){ return Array.from(document.querySelectorAll('.choice-row input:checked')).map(function(x){return Number(x.value);}).sort(function(a,b){return a-b;}); }
   function sameArray(a,b){ if(a.length!==b.length)return false; for(var i=0;i<a.length;i++) if(a[i]!==b[i]) return false; return true; }
+
+  function shuffleArray(arr){
+    for(var j=arr.length-1;j>0;j--){
+      var k=Math.floor(Math.random()*(j+1));
+      var t=arr[j]; arr[j]=arr[k]; arr[k]=t;
+    }
+    return arr;
+  }
+
+  function mockEligibleIndices(){
+    var selectedSet=$('setSelect').value;
+    var selectedCategory=$('categorySelect').value;
+    var selectedMode=$('modeSelect').value;
+    var query=String($('searchInput').value||'').toLowerCase();
+    var arr=[];
+
+    QUESTIONS.forEach(function(q,i){
+      var s=state.stats[q.id];
+      if(!(q.type==='single'||q.type==='multi')) return;
+      if(selectedSet!=='all' && q.setId!==selectedSet) return;
+      if(selectedCategory!=='all' && q.category!==selectedCategory) return;
+      if(query && questionText(q).indexOf(query)<0) return;
+
+      if(selectedMode==='weak' && !(s && s.wrong>0)) return;
+      if(selectedMode==='lastWrong' && !(s && s.last===false)) return;
+      if(selectedMode==='unseen' && s && s.tries>0) return;
+      if(selectedMode==='bookmark' && !(s && s.bookmarked)) return;
+      if(selectedMode==='figure' && !(q.figures && q.figures.length)) return;
+      if(selectedMode==='text' || selectedMode==='self') return;
+
+      arr.push(i);
+    });
+
+    var unseenFirst=$('mockUnseenFirstToggle') && $('mockUnseenFirstToggle').checked;
+    if(unseenFirst){
+      var unseen=[], seen=[];
+      arr.forEach(function(i){
+        var st=state.stats[QUESTIONS[i].id];
+        if(!st || !st.tries) unseen.push(i); else seen.push(i);
+      });
+      arr=shuffleArray(unseen).concat(shuffleArray(seen));
+    } else {
+      arr=shuffleArray(arr);
+    }
+    return arr;
+  }
+
+  function startMockTest(){
+    state.set=$('setSelect').value;
+    state.category=$('categorySelect').value;
+    state.mode=$('modeSelect').value;
+    state.search=$('searchInput').value||'';
+
+    var arr=mockEligibleIndices();
+    if(!arr.length){
+      alert('この条件で出題できる選択問題がありません。出題モードやカテゴリを変更してください。');
+      return;
+    }
+
+    var countValue=$('mockCountSelect').value;
+    var count=countValue==='all'?arr.length:Math.min(Number(countValue||10), arr.length);
+    var selected=arr.slice(0,count);
+
+    state.order=selected;
+    state.index=0;
+    state.mock={
+      active:true,
+      finished:false,
+      answers:{},
+      result:null,
+      lastConfig:{
+        set:state.set,
+        category:state.category,
+        mode:state.mode,
+        search:state.search,
+        count:countValue,
+        unseenFirst:!!($('mockUnseenFirstToggle') && $('mockUnseenFirstToggle').checked)
+      }
+    };
+
+    showView('quizView');
+    renderQuestion();
+    window.scrollTo(0,0);
+  }
+
+  function saveMockAnswerFromCurrent(showMessage){
+    if(!(state.mock && state.mock.active && !state.mock.finished)) return false;
+    var q=currentQuestion();
+    if(!q) return false;
+    var selected=selectedValues();
+    state.mock.answers[q.id]=selected;
+    if(showMessage){
+      var res=$('result');
+      if(res){
+        res.className='result ok';
+        res.textContent=selected.length?'回答を保存しました。':'未選択として保存しました。';
+      }
+    }
+    return true;
+  }
+
+  function finishMockTest(){
+    if(!(state.mock && state.mock.active && !state.mock.finished)) return;
+    saveMockAnswerFromCurrent(false);
+
+    var result={total:state.order.length, correct:0, wrong:0, skipped:0, items:[]};
+
+    state.order.forEach(function(idx){
+      var q=QUESTIONS[idx];
+      var selected=(state.mock.answers[q.id]||[]).slice().sort(function(a,b){return a-b;});
+      var correct=(q.answer||[]).slice().sort(function(a,b){return a-b;});
+      var ok=sameArray(selected, correct);
+      var skipped=!selected.length;
+      if(ok) result.correct++;
+      else result.wrong++;
+      if(skipped) result.skipped++;
+
+      var st=getStat(q.id);
+      st.tries++;
+      if(ok) st.correct++;
+      else st.wrong++;
+      st.last=ok;
+
+      result.items.push({index:idx, id:q.id, ok:ok, skipped:skipped, selected:selected, correct:correct});
+    });
+
+    saveStats();
+    state.mock.finished=true;
+    state.mock.result=result;
+    updateSummary();
+    renderMockResult();
+    showView('mockResultView');
+    window.scrollTo(0,0);
+  }
+
+  function answerLettersFromArray(arr){
+    return (arr||[]).map(function(i){return LETTERS.charAt(i);}).join('、') || '未選択';
+  }
+
+  function renderMockResult(){
+    var r=state.mock && state.mock.result;
+    if(!r) return;
+    var percent=r.total?Math.round(r.correct/r.total*100):0;
+
+    var html='<div class="mock-score '+(percent>=80?'good':(percent>=60?'mid':'low'))+'"><div><b>'+percent+'%</b><span>得点率</span></div><div><b>'+r.correct+' / '+r.total+'</b><span>正答数</span></div></div>';
+    html+='<div class="mock-result-grid"><div>正解：<b>'+r.correct+'</b></div><div>不正解：<b>'+r.wrong+'</b></div><div>未回答：<b>'+r.skipped+'</b></div></div>';
+    html+='<p class="hint-text">この結果は各問題の回答履歴にも反映しました。下の一覧から、間違えた問題と正答を確認できます。</p>';
+    $('mockResultSummary').innerHTML=html;
+
+    var list='';
+    r.items.forEach(function(item,n){
+      var q=QUESTIONS[item.index];
+      var status=item.ok?'正解':'不正解';
+      list+='<div class="mock-review-item '+(item.ok?'ok':'ng')+'">';
+      list+='<div class="mock-review-head"><b>問'+(n+1)+'：'+esc(status)+'</b><span>'+esc(q.setName)+'</span></div>';
+      list+='<p>'+esc(q.prompt)+'</p>';
+      list+='<small>あなたの回答：'+esc(answerLettersFromArray(item.selected))+' / 正解：'+esc(answerLettersFromArray(item.correct))+'</small>';
+      if(q.explain) list+='<details><summary>解説を見る</summary><div class="context-block">'+esc(q.explain)+'</div></details>';
+      list+='</div>';
+    });
+    $('mockReviewList').innerHTML=list;
+  }
+
+  function retryMockWrong(){
+    var r=state.mock && state.mock.result;
+    if(!r) return;
+    var wrong=r.items.filter(function(x){return !x.ok;}).map(function(x){return x.index;});
+    if(!wrong.length){
+      alert('不正解の問題はありません。');
+      return;
+    }
+    state.mock.active=false;
+    state.mock.finished=false;
+    state.order=wrong;
+    state.index=0;
+    showView('quizView');
+    renderQuestion();
+    window.scrollTo(0,0);
+  }
+
+  function repeatMockTest(){
+    var cfg=state.mock && state.mock.lastConfig;
+    showView('homeView');
+    if(cfg){
+      $('setSelect').value=cfg.set || 'all';
+      state.set=$('setSelect').value;
+      setupCategorySelect();
+      $('categorySelect').value=cfg.category || 'all';
+      $('modeSelect').value=cfg.mode || 'all';
+      $('searchInput').value=cfg.search || '';
+      $('mockCountSelect').value=cfg.count || '10';
+      if($('mockUnseenFirstToggle')) $('mockUnseenFirstToggle').checked=!!cfg.unseenFirst;
+      updateSummary();
+      startMockTest();
+    }
+  }
+
+
   function gradeSelf(ok){
     var q=currentQuestion(); if(!q) return;
     var st=getStat(q.id); st.tries++; if(ok) st.correct++; else st.wrong++; st.last=ok; saveStats(); updateSummary();
@@ -238,6 +490,7 @@
     var res=$('result'); res.className='result '+(ok?'ok':'ng'); res.textContent=ok?'正解として記録しました。':'不正解として記録しました。';
   }
   function gradeCurrent(){
+    if(state.mock && state.mock.active && !state.mock.finished){ saveMockAnswerFromCurrent(true); return; }
     var q=currentQuestion(); if(!q)return;
     if(q.type==='self'){ document.querySelector('.answer-panel').classList.add('show'); return; }
     var ok=false, result=$('result');
@@ -264,19 +517,33 @@
       html+='<button class="list-item" type="button" data-index="'+i+'"><b>'+(s.bookmarked?'★ ':'')+esc(q.setName)+' / No.'+(q.no||'')+' '+esc(q.prompt)+'</b><small>'+esc(q.category)+' / 回答 '+s.tries+'回 / 誤答 '+s.wrong+'回 / 正答率 '+rate+'</small></button>';
     });
     box.innerHTML=html||'<div class="panel">該当する問題がありません。</div>';
-    box.querySelectorAll('.list-item').forEach(function(btn){ btn.addEventListener('click',function(){ state.order=[Number(this.getAttribute('data-index'))]; state.index=0; showView('quizView'); renderQuestion(); }); });
+    box.querySelectorAll('.list-item').forEach(function(btn){ btn.addEventListener('click',function(){ state.mock.active=false; state.mock.finished=false; state.order=[Number(this.getAttribute('data-index'))]; state.index=0; showView('quizView'); renderQuestion(); }); });
   }
-  function prevQuestion(){ if(state.index>0){state.index--; renderQuestion(); window.scrollTo(0,0);} }
-  function nextQuestion(){ if(state.index<state.order.length-1){state.index++; renderQuestion(); window.scrollTo(0,0);} }
+  function prevQuestion(){
+    if(state.mock && state.mock.active && !state.mock.finished) saveMockAnswerFromCurrent(false);
+    if(state.index>0){state.index--; renderQuestion(); window.scrollTo(0,0);}
+  }
+  function nextQuestion(){
+    if(state.mock && state.mock.active && !state.mock.finished){
+      saveMockAnswerFromCurrent(false);
+      if(state.index>=state.order.length-1){ finishMockTest(); return; }
+      state.index++; renderQuestion(); window.scrollTo(0,0); return;
+    }
+    if(state.index<state.order.length-1){state.index++; renderQuestion(); window.scrollTo(0,0);}
+  }
   function resetHistory(){ if(!confirm('履歴を削除しますか？'))return; state.stats={}; saveStats(); updateSummary(); renderQuestion(); }
   function exportHistory(){ var blob=new Blob([JSON.stringify(state.stats,null,2)],{type:'application/json'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='social_pharmacy_autograded_history.json'; a.click(); URL.revokeObjectURL(url); }
   function importHistory(file){ if(!file)return; var reader=new FileReader(); reader.onload=function(){ try{ state.stats=JSON.parse(String(reader.result||'{}')); for(var id in state.stats) state.stats[id]=normalizeStat(state.stats[id]); saveStats(); updateSummary(); alert('履歴を読み込みました。'); }catch(e){ alert('読み込みに失敗しました。'); } }; reader.readAsText(file); }
   function bindEvents(){
     $('setSelect').addEventListener('change', function(){ state.set=this.value; setupCategorySelect(); updateSummary(); });
     $('startBtn').addEventListener('click', startQuiz);
-    $('listBtn').addEventListener('click', function(){ state.set=$('setSelect').value; renderQuestionList(); showView('listView'); });
-    $('backHomeBtn').addEventListener('click', function(){ updateSummary(); showView('homeView'); });
-    $('listHomeBtn').addEventListener('click', function(){ updateSummary(); showView('homeView'); });
+    $('listBtn').addEventListener('click', function(){ state.mock.active=false; state.mock.finished=false; state.set=$('setSelect').value; renderQuestionList(); showView('listView'); });
+    if($('mockStartBtn')) $('mockStartBtn').addEventListener('click', startMockTest);
+    if($('mockHomeBtn')) $('mockHomeBtn').addEventListener('click', function(){ state.mock.active=false; state.mock.finished=false; updateSummary(); showView('homeView'); });
+    if($('mockRetryWrongBtn')) $('mockRetryWrongBtn').addEventListener('click', retryMockWrong);
+    if($('mockRepeatBtn')) $('mockRepeatBtn').addEventListener('click', repeatMockTest);
+    $('backHomeBtn').addEventListener('click', function(){ state.mock.active=false; state.mock.finished=false; updateSummary(); showView('homeView'); });
+    $('listHomeBtn').addEventListener('click', function(){ state.mock.active=false; state.mock.finished=false; updateSummary(); showView('homeView'); });
     $('prevBtn').addEventListener('click', prevQuestion); $('nextBtn').addEventListener('click', nextQuestion); $('gradeBtn').addEventListener('click', gradeCurrent);
     $('listSearchInput').addEventListener('input', renderQuestionList);
     $('settingsBtn').addEventListener('click', function(){ $('settingsDialog').showModal(); });

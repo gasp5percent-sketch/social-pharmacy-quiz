@@ -11,13 +11,13 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="stylesheet" href="./styles.css">
-  <title>社会薬学総論 R8回別PDF 全問選択・表示修正版</title>
+  <title>社会薬学総論 模擬テストモード追加版</title>
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>社会薬学総論</h1>
-      <p>R8回別PDF 全問選択・表示修正版</p>
+      <p>模擬テストモード追加版</p>
     </div>
     <button id="settingsBtn" class="icon-btn" type="button" aria-label="設定">⚙</button>
   </header>
@@ -63,6 +63,29 @@
         <button id="listBtn" class="secondary-btn" type="button">問題一覧</button>
       </div>
 
+
+      <div class="panel mock-setup-panel">
+        <h2>模擬テストモード</h2>
+        <p class="hint-text">上の問題セット・カテゴリ・検索・出題モードの条件から、選択問題だけをランダムに出題します。採点は最後にまとめて行います。</p>
+
+        <label class="label" for="mockCountSelect">出題数</label>
+        <select id="mockCountSelect">
+          <option value="10">10問</option>
+          <option value="25">25問</option>
+          <option value="50">50問</option>
+          <option value="100">100問</option>
+          <option value="all">全問</option>
+        </select>
+
+        <label class="switch-row">
+          <input id="mockUnseenFirstToggle" type="checkbox">
+          <span>未回答を優先して出題</span>
+        </label>
+
+        <button id="mockStartBtn" class="mock-btn" type="button">模擬テストを開始</button>
+        <div id="mockSetupInfo" class="mock-setup-info"></div>
+      </div>
+
       <div class="panel">
         <h2>セット別進捗</h2>
         <div id="setStats" class="category-stats"></div>
@@ -90,6 +113,20 @@
         <button id="gradeBtn" class="primary-btn" type="button">採点</button>
         <button id="nextBtn" class="secondary-btn" type="button">次 →</button>
       </nav>
+    </section>
+
+
+    <section id="mockResultView" class="view">
+      <div class="quiz-top">
+        <button id="mockHomeBtn" class="secondary-btn compact" type="button">ホーム</button>
+        <h2>模擬テスト結果</h2>
+      </div>
+      <div id="mockResultSummary" class="panel"></div>
+      <div class="mock-result-actions">
+        <button id="mockRetryWrongBtn" class="primary-btn" type="button">間違えた問題だけ復習</button>
+        <button id="mockRepeatBtn" class="secondary-btn" type="button">同じ条件でもう一度</button>
+      </div>
+      <div id="mockReviewList" class="question-list"></div>
     </section>
 
     <section id="listView" class="view">

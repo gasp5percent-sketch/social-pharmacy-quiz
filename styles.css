@@ -97,3 +97,28 @@ dialog{width:min(92vw,420px);padding:0;border:0;border-radius:18px;background:tr
   max-height:none !important;
   overflow-wrap:anywhere !important;
 }
+
+
+/* mock test mode */
+.mock-setup-panel h2{margin-top:0}
+.hint-text{margin:6px 0 12px;color:var(--muted);font-size:14px;font-weight:700}
+.mock-btn{width:100%;margin-top:12px;background:#7c3aed;color:#fff;border-color:#7c3aed}
+.mock-setup-info{margin-top:8px;color:var(--muted);font-size:13px;font-weight:700}
+.mock-pill{background:#ede9fe!important;color:#5b21b6!important}
+.mock-note,.mock-hidden-note{margin:12px 0;padding:10px 12px;border:1px solid #c4b5fd;border-radius:14px;background:#f5f3ff;color:#4c1d95;font-weight:800;font-size:14px}
+.mock-result-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.mock-score{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.mock-score>div{border:1px solid var(--border);border-radius:16px;padding:14px;text-align:center;background:rgba(148,163,184,.08)}
+.mock-score b{display:block;font-size:28px}.mock-score span{display:block;color:var(--muted);font-weight:800}
+.mock-score.good b{color:var(--ok)}.mock-score.mid b{color:#ca8a04}.mock-score.low b{color:var(--ng)}
+.mock-result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.mock-result-grid div{border:1px solid var(--border);border-radius:14px;padding:10px;text-align:center;background:rgba(148,163,184,.08);font-weight:800}
+.mock-review-item{border:1px solid var(--border);border-radius:16px;padding:12px;background:var(--card)}
+.mock-review-item.ok{border-left:5px solid #22c55e}.mock-review-item.ng{border-left:5px solid #ef4444}
+.mock-review-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px}.mock-review-head span{color:var(--muted);font-size:12px;font-weight:800}
+.mock-review-item p{margin:8px 0}.mock-review-item small{display:block;color:var(--muted);font-weight:800}
+.mock-review-item details{margin-top:8px}
+@media (prefers-color-scheme:dark){
+  .mock-pill{background:#4c1d95!important;color:#ede9fe!important}
+  .mock-note,.mock-hidden-note{background:#2e1065;color:#ede9fe;border-color:#6d28d9}
+}

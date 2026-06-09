@@ -1,5 +1,5 @@
 // Cache cleanup service worker. This version intentionally does not cache app files.
-const CACHE_NAME = 'social-pharmacy-choice-complete-v3';
+const CACHE_NAME = 'social-pharmacy-mock-test-v1';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
