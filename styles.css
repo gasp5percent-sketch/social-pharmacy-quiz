@@ -61,3 +61,39 @@ dialog{width:min(92vw,420px);padding:0;border:0;border-radius:18px;background:tr
 .question-card.graded .choice.correct{background:#052e16;border-color:#22c55e;color:#dcfce7}.question-card.graded .choice-row input:checked+label.wrong{background:#450a0a;border-color:#ef4444;color:#fee2e2}
 .result.ok{background:#052e16;color:#dcfce7}.result.ng{background:#450a0a;color:#fee2e2}.badge-ok{background:#052e16;color:#dcfce7}.badge-ng{background:#450a0a;color:#fee2e2}
 }
+
+
+/* v3 fix: do not truncate long choice text */
+.choice{
+  height:auto !important;
+  max-height:none !important;
+  overflow:visible !important;
+  align-items:flex-start !important;
+}
+.choice > span:last-child{
+  display:block !important;
+  flex:1 1 auto !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  white-space:normal !important;
+  overflow:visible !important;
+  text-overflow:clip !important;
+  overflow-wrap:anywhere !important;
+  word-break:break-word !important;
+  line-height:1.65 !important;
+}
+.choice-row{
+  height:auto !important;
+  max-height:none !important;
+  overflow:visible !important;
+}
+.prompt{
+  overflow:visible !important;
+  white-space:normal !important;
+  overflow-wrap:anywhere !important;
+}
+.context-block{
+  overflow:visible !important;
+  max-height:none !important;
+  overflow-wrap:anywhere !important;
+}
