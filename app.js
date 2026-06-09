@@ -90,6 +90,28 @@
     });
   }
 
+
+  function analysisTypeScope(){
+    return $('analysisTypeScopeSelect') ? $('analysisTypeScopeSelect').value : 'all';
+  }
+
+  function analysisTypeScopeLabel(scope){
+    var map={
+      all:'全形式',
+      select:'選択問題のみ',
+      single:'単一選択のみ',
+      multi:'複数選択のみ',
+      text:'記述・空欄のみ',
+      self:'自己採点カードのみ',
+      figure:'図表つきのみ'
+    };
+    return map[scope] || '全形式';
+  }
+
+  function analysisScopeMatches(q){
+    return typeMatches(q, analysisTypeScope());
+  }
+
   function setShortName(s){
     var n=String(s.name||'');
     if(n.indexOf('既存')>=0) return '既存';
@@ -115,6 +137,7 @@
 
     QUESTIONS.forEach(function(q){
       if(state.set!=='all' && q.setId!==state.set) return;
+      if(!analysisScopeMatches(q)) return;
       var id=analysisCategory(q);
       if(!base[id]) return;
       var b=base[id], s=state.stats[q.id];
@@ -139,6 +162,7 @@
     });
 
     QUESTIONS.forEach(function(q){
+      if(!analysisScopeMatches(q)) return;
       if(!base[q.setId]) return;
       var b=base[q.setId], s=state.stats[q.id];
       b.total++;
@@ -214,6 +238,8 @@
   function renderAnalysisDashboard(){
     if(!$('analysisRadar')) return;
     var mode=$('analysisModeSelect') ? $('analysisModeSelect').value : 'category';
+    var scope=analysisTypeScope();
+    var scopeLabel=analysisTypeScopeLabel(scope);
     var stats=analysisStats();
     var total=stats.reduce(function(a,b){return a+b.total;},0);
     var done=stats.reduce(function(a,b){return a+b.done;},0);
@@ -224,7 +250,7 @@
 
     var setLabel=state.set==='all'?'全セット横断':(SETS.find(function(s){return s.id===state.set;})||{name:'選択セット'}).name;
     var modeLabel=mode==='set'?'問題セット別（全セット）':'カテゴリ別（'+setLabel+'）';
-    $('analysisSummary').innerHTML='<div><b>'+esc(modeLabel)+'</b></div><div>回答率 <b>'+answerRate+'%</b>（'+done+'/'+total+'問）</div><div>正答率 <b>'+accuracy+'%</b>（'+correct+'/'+attempts+'回）</div>';
+    $('analysisSummary').innerHTML='<div><b>'+esc(modeLabel)+'</b></div><div>対象 <b>'+esc(scopeLabel)+'</b></div><div>回答率 <b>'+answerRate+'%</b>（'+done+'/'+total+'問）</div><div>正答率 <b>'+accuracy+'%</b>（'+correct+'/'+attempts+'回）</div>';
 
     $('analysisRadar').innerHTML=renderAnalysisRadar(stats);
 
@@ -233,7 +259,7 @@
       html+='<div class="analysis-card" data-analysis-card="'+esc(s.id)+'">';
       html+='<div class="analysis-card-head"><b>'+esc(s.label)+'</b><span>'+s.done+'/'+s.total+'問</span></div>';
       html+='<div class="mini-bars"><label>回答率 '+s.answerRate+'%</label><div><i style="width:'+s.answerRate+'%"></i></div><label>正答率 '+s.accuracy+'%</label><div><i class="accuracy" style="width:'+s.accuracy+'%"></i></div></div>';
-      html+='<small>回答 '+s.attempts+'回 / 誤答 '+s.wrong+'回 / 直近不正解 '+s.lastWrong+'問 / ブックマーク '+s.bookmarked+'問</small>';
+      html+='<small>対象 '+esc(scopeLabel)+' / 回答 '+s.attempts+'回 / 誤答 '+s.wrong+'回 / 直近不正解 '+s.lastWrong+'問 / ブックマーク '+s.bookmarked+'問</small>';
       html+='<div class="analysis-actions">';
       html+='<button type="button" data-analysis-kind="'+esc(s.kind)+'" data-analysis-action="all" data-analysis-id="'+esc(s.id)+'">この範囲を解く</button>';
       html+='<button type="button" data-analysis-kind="'+esc(s.kind)+'" data-analysis-action="unseen" data-analysis-id="'+esc(s.id)+'">未回答</button>';
@@ -241,7 +267,7 @@
       html+='<button type="button" data-analysis-kind="'+esc(s.kind)+'" data-analysis-action="mock" data-analysis-id="'+esc(s.id)+'">テスト</button>';
       html+='</div></div>';
     });
-    $('analysisCategoryCards').innerHTML=html;
+    $('analysisCategoryCards').innerHTML=html||'<div class="panel">対象範囲に該当する問題がありません。</div>';
 
     $('analysisCategoryCards').querySelectorAll('[data-analysis-action]').forEach(function(btn){
       btn.addEventListener('click', function(){
@@ -255,6 +281,7 @@
     QUESTIONS.forEach(function(q,i){
       if(state.set!=='all' && q.setId!==state.set) return;
       if(analysisCategory(q)!==catId) return;
+      if(!analysisScopeMatches(q)) return;
       if(selectOnly && !(q.type==='single'||q.type==='multi')) return;
       var s=state.stats[q.id];
       if(mode==='unseen' && s && s.tries>0) return;
@@ -269,6 +296,7 @@
     var arr=[];
     QUESTIONS.forEach(function(q,i){
       if(q.setId!==setId) return;
+      if(!analysisScopeMatches(q)) return;
       if(selectOnly && !(q.type==='single'||q.type==='multi')) return;
       var s=state.stats[q.id];
       if(mode==='unseen' && s && s.tries>0) return;
@@ -288,13 +316,18 @@
     kind=kind||'category';
     var order;
     if(action==='mock'){
+      var scope=analysisTypeScope();
+      if(scope==='text' || scope==='self'){
+        alert('模擬テストは自動採点できる選択問題のみ対象です。グラフ対象を「全形式」「選択問題のみ」「単一選択のみ」「複数選択のみ」「図表つきのみ」に変更してください。');
+        return;
+      }
       order=shuffleIndices(kind==='set' ? indicesByAnalysisSet(targetId, 'all', true) : indicesByAnalysisCategory(targetId, 'all', true));
       if(!order.length){ alert('この範囲に選択問題がありません。'); return; }
       var countValue=$('mockCountSelect') ? $('mockCountSelect').value : '25';
       var count=countValue==='all'?order.length:Math.min(Number(countValue||25), order.length);
       state.order=order.slice(0,count);
       state.index=0;
-      state.mock={active:true, finished:false, answers:{}, result:null, lastConfig:{analysisTarget:targetId, analysisKind:kind, count:countValue}};
+      state.mock={active:true, finished:false, answers:{}, result:null, lastConfig:{analysisTarget:targetId, analysisKind:kind, analysisScope:scope, count:countValue}};
       showView('quizView'); renderQuestion(); window.scrollTo(0,0);
       return;
     }
