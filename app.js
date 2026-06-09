@@ -30,6 +30,229 @@
 
   var state = { set:'all', category:'all', mode:'all', search:'', shuffle:false, order:[], index:0, stats:{}, mock:{active:false, finished:false, answers:{}, result:null, lastConfig:null} };
 
+
+  var ANALYSIS_CATEGORIES = [
+    {id:'law', label:'法・責任・倫理', short:'法・倫理'},
+    {id:'pharm_med', label:'薬剤師法・医療法', short:'薬剤師法'},
+    {id:'pmda_def', label:'薬機法：定義・薬局・販売', short:'薬機法1'},
+    {id:'pmda_handle', label:'薬機法：取扱い・広告・製造', short:'薬機法2'},
+    {id:'dev_safety', label:'開発・市販後・薬害', short:'開発・薬害'},
+    {id:'controlled', label:'管理薬・毒劇', short:'管理薬'},
+    {id:'social', label:'社会保障・医療経済・地域薬局', short:'社会保障'}
+  ];
+
+  function analysisCategory(q){
+    var sid=q.setId||'', cat=String(q.category||''), setName=String(q.setName||''), src=String(q.source||''), text=(cat+' '+setName+' '+src+' '+String(q.prompt||'')).toLowerCase();
+
+    var examMap = {
+      'exam_01':'law',
+      'exam_02':'pharm_med',
+      'exam_03':'pmda_def',
+      'exam_04':'pmda_handle',
+      'exam_05':'dev_safety',
+      'exam_06':'controlled',
+      'exam_07':'social'
+    };
+    if(examMap[sid]) return examMap[sid];
+
+    if(sid==='r8'){
+      var pm=src.match(/p\.(\d+)/); var p=pm?Number(pm[1]):0;
+      if(cat.indexOf('法規制度倫理')>=0 || (p>=2 && p<=8)) return 'law';
+      if(cat.indexOf('薬剤師法')>=0 || (p>=19 && p<=24)) return 'pharm_med';
+      if(cat.indexOf('医薬品医療機器等法')>=0 || (p>=9 && p<=18)) return 'pmda_def';
+      if(p>=29 && p<=30) return 'pmda_handle';
+      if(cat.indexOf('管理薬')>=0 || (p>=25 && p<=28)) return 'controlled';
+      if(cat.indexOf('薬害')>=0 || cat.indexOf('医薬品等開発')>=0 || (p>=31 && p<=37) || (p>=51 && p<=72)) return 'dev_safety';
+      if(cat.indexOf('社会保障')>=0 || (p>=38 && p<=50)) return 'social';
+    }
+
+    if(sid==='set1'){
+      if(cat.indexOf('問1')>=0 || cat.indexOf('基礎')>=0) return 'law';
+      if(cat.indexOf('問3')>=0 || cat.indexOf('問4')>=0 || cat.indexOf('薬剤師法')>=0 || cat.indexOf('医療法')>=0 || cat.indexOf('医師法')>=0) return 'pharm_med';
+      if(cat.indexOf('問2')>=0 || cat.indexOf('薬機法')>=0) return 'pmda_def';
+      if(cat.indexOf('問5')>=0 || cat.indexOf('問6')>=0 || cat.indexOf('管理薬')>=0 || cat.indexOf('毒物劇物')>=0) return 'controlled';
+      if(cat.indexOf('問7')>=0 || cat.indexOf('問11')>=0 || cat.indexOf('薬害')>=0 || cat.indexOf('開発')>=0) return 'dev_safety';
+      if(cat.indexOf('問8')>=0 || cat.indexOf('問9')>=0 || cat.indexOf('問10')>=0 || cat.indexOf('社会保障')>=0 || cat.indexOf('医療保険')>=0 || cat.indexOf('介護保険')>=0 || cat.indexOf('国民医療費')>=0) return 'social';
+    }
+
+    if(text.indexOf('薬剤師法')>=0 || text.indexOf('医療法')>=0 || text.indexOf('医師法')>=0 || text.indexOf('疑義照会')>=0 || text.indexOf('薬袋')>=0) return 'pharm_med';
+    if(text.indexOf('麻薬')>=0 || text.indexOf('向精神')>=0 || text.indexOf('覚醒剤')>=0 || text.indexOf('大麻')>=0 || text.indexOf('あへん')>=0 || text.indexOf('毒物')>=0 || text.indexOf('劇物')>=0) return 'controlled';
+    if(text.indexOf('治験')>=0 || text.indexOf('gcp')>=0 || text.indexOf('rmp')>=0 || text.indexOf('再審査')>=0 || text.indexOf('再評価')>=0 || text.indexOf('薬害')>=0 || text.indexOf('副作用')>=0 || text.indexOf('救済')>=0 || text.indexOf('開発')>=0) return 'dev_safety';
+    if(text.indexOf('社会保障')>=0 || text.indexOf('医療保険')>=0 || text.indexOf('介護保険')>=0 || text.indexOf('調剤報酬')>=0 || text.indexOf('医療経済')>=0 || text.indexOf('地域薬局')>=0 || text.indexOf('国民医療費')>=0) return 'social';
+    if(text.indexOf('広告')>=0 || text.indexOf('製造')>=0 || text.indexOf('承認')>=0 || text.indexOf('gmp')>=0 || text.indexOf('gvp')>=0 || text.indexOf('gqp')>=0) return 'pmda_handle';
+    if(text.indexOf('薬機法')>=0 || text.indexOf('医薬品')>=0 || text.indexOf('薬局')>=0 || text.indexOf('販売')>=0 || text.indexOf('要指導')>=0 || text.indexOf('一般用')>=0) return 'pmda_def';
+    return 'law';
+  }
+
+  function analysisFilteredQuestions(){
+    return QUESTIONS.filter(function(q){
+      return state.set==='all' || q.setId===state.set;
+    });
+  }
+
+  function analysisStats(){
+    var base={};
+    ANALYSIS_CATEGORIES.forEach(function(c){
+      base[c.id]={id:c.id,label:c.label,short:c.short,total:0,done:0,attempts:0,correct:0,wrong:0,lastWrong:0,bookmarked:0,answerRate:0,accuracy:0};
+    });
+
+    analysisFilteredQuestions().forEach(function(q){
+      var id=analysisCategory(q);
+      if(!base[id]) return;
+      var b=base[id], s=state.stats[q.id];
+      b.total++;
+      if(s){
+        b.attempts+=s.tries||0;
+        b.correct+=s.correct||0;
+        b.wrong+=s.wrong||0;
+        if(s.tries>0) b.done++;
+        if(s.last===false) b.lastWrong++;
+        if(s.bookmarked) b.bookmarked++;
+      }
+    });
+
+    ANALYSIS_CATEGORIES.forEach(function(c){
+      var b=base[c.id];
+      b.answerRate=b.total?Math.round(b.done/b.total*100):0;
+      b.accuracy=b.attempts?Math.round(b.correct/b.attempts*100):0;
+    });
+    return ANALYSIS_CATEGORIES.map(function(c){return base[c.id];});
+  }
+
+  function radarPoint(i, value, n, cx, cy, rmax){
+    var angle=-Math.PI/2 + (Math.PI*2*i/n);
+    var r=rmax*(Math.max(0, Math.min(100, value))/100);
+    return {x:cx+Math.cos(angle)*r, y:cy+Math.sin(angle)*r, angle:angle};
+  }
+
+  function radarPolygon(stats, key, cx, cy, rmax){
+    return stats.map(function(s,i){
+      var p=radarPoint(i, s[key], stats.length, cx, cy, rmax);
+      return p.x.toFixed(1)+','+p.y.toFixed(1);
+    }).join(' ');
+  }
+
+  function renderAnalysisRadar(stats){
+    var cx=180, cy=180, rmax=106, n=stats.length;
+    var svg='';
+    svg+='<svg class="radar-svg" viewBox="0 0 360 360" role="img" aria-label="カテゴリ別の回答率と正答率">';
+    [20,40,60,80,100].forEach(function(v){
+      var pts=[];
+      for(var i=0;i<n;i++) pts.push(radarPoint(i,v,n,cx,cy,rmax).x.toFixed(1)+','+radarPoint(i,v,n,cx,cy,rmax).y.toFixed(1));
+      svg+='<polygon class="radar-ring" points="'+pts.join(' ')+'"></polygon>';
+      if(v===80) svg+='<polygon class="radar-target" points="'+pts.join(' ')+'"></polygon>';
+    });
+
+    for(var i=0;i<n;i++){
+      var end=radarPoint(i,100,n,cx,cy,rmax);
+      svg+='<line class="radar-axis" x1="'+cx+'" y1="'+cy+'" x2="'+end.x.toFixed(1)+'" y2="'+end.y.toFixed(1)+'"></line>';
+      var lp=radarPoint(i,123,n,cx,cy,rmax);
+      var anchor=lp.x<150?'end':(lp.x>210?'start':'middle');
+      var label=stats[i].short;
+      svg+='<text class="radar-label" x="'+lp.x.toFixed(1)+'" y="'+lp.y.toFixed(1)+'" text-anchor="'+anchor+'">'+esc(label)+'</text>';
+    }
+
+    svg+='<text class="radar-scale" x="180" y="'+(cy-rmax*0.8-3).toFixed(1)+'" text-anchor="middle">80%</text>';
+    svg+='<text class="radar-scale" x="180" y="'+(cy-rmax-3).toFixed(1)+'" text-anchor="middle">100%</text>';
+
+    svg+='<polygon class="radar-area answer" points="'+radarPolygon(stats,'answerRate',cx,cy,rmax)+'"></polygon>';
+    svg+='<polygon class="radar-area accuracy" points="'+radarPolygon(stats,'accuracy',cx,cy,rmax)+'"></polygon>';
+
+    stats.forEach(function(s,i){
+      var p1=radarPoint(i,s.answerRate,n,cx,cy,rmax);
+      var p2=radarPoint(i,s.accuracy,n,cx,cy,rmax);
+      svg+='<circle class="radar-dot answer" cx="'+p1.x.toFixed(1)+'" cy="'+p1.y.toFixed(1)+'" r="3.2"></circle>';
+      svg+='<circle class="radar-dot accuracy" cx="'+p2.x.toFixed(1)+'" cy="'+p2.y.toFixed(1)+'" r="3.2"></circle>';
+    });
+
+    svg+='</svg>';
+    svg+='<div class="radar-legend"><span><i class="legend-answer"></i>回答率</span><span><i class="legend-accuracy"></i>正答率</span><span><i class="legend-target"></i>目標80%</span></div>';
+    return svg;
+  }
+
+  function renderAnalysisDashboard(){
+    if(!$('analysisRadar')) return;
+    var stats=analysisStats();
+    var total=stats.reduce(function(a,b){return a+b.total;},0);
+    var done=stats.reduce(function(a,b){return a+b.done;},0);
+    var attempts=stats.reduce(function(a,b){return a+b.attempts;},0);
+    var correct=stats.reduce(function(a,b){return a+b.correct;},0);
+    var answerRate=total?Math.round(done/total*100):0;
+    var accuracy=attempts?Math.round(correct/attempts*100):0;
+
+    var setLabel=state.set==='all'?'全セット横断':(SETS.find(function(s){return s.id===state.set;})||{name:'選択セット'}).name;
+    $('analysisSummary').innerHTML='<div><b>'+esc(setLabel)+'</b></div><div>回答率 <b>'+answerRate+'%</b>（'+done+'/'+total+'問）</div><div>正答率 <b>'+accuracy+'%</b>（'+correct+'/'+attempts+'回）</div>';
+
+    $('analysisRadar').innerHTML=renderAnalysisRadar(stats);
+
+    var html='';
+    stats.forEach(function(s){
+      html+='<div class="analysis-card" data-analysis-card="'+esc(s.id)+'">';
+      html+='<div class="analysis-card-head"><b>'+esc(s.label)+'</b><span>'+s.done+'/'+s.total+'問</span></div>';
+      html+='<div class="mini-bars"><label>回答率 '+s.answerRate+'%</label><div><i style="width:'+s.answerRate+'%"></i></div><label>正答率 '+s.accuracy+'%</label><div><i class="accuracy" style="width:'+s.accuracy+'%"></i></div></div>';
+      html+='<small>回答 '+s.attempts+'回 / 誤答 '+s.wrong+'回 / 直近不正解 '+s.lastWrong+'問 / ブックマーク '+s.bookmarked+'問</small>';
+      html+='<div class="analysis-actions">';
+      html+='<button type="button" data-analysis-action="all" data-analysis-id="'+esc(s.id)+'">このカテゴリを解く</button>';
+      html+='<button type="button" data-analysis-action="unseen" data-analysis-id="'+esc(s.id)+'">未回答</button>';
+      html+='<button type="button" data-analysis-action="wrong" data-analysis-id="'+esc(s.id)+'">誤答復習</button>';
+      html+='<button type="button" data-analysis-action="mock" data-analysis-id="'+esc(s.id)+'">テスト</button>';
+      html+='</div></div>';
+    });
+    $('analysisCategoryCards').innerHTML=html;
+
+    $('analysisCategoryCards').querySelectorAll('[data-analysis-action]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        startAnalysisAction(this.getAttribute('data-analysis-id'), this.getAttribute('data-analysis-action'));
+      });
+    });
+  }
+
+  function indicesByAnalysisCategory(catId, mode, selectOnly){
+    var arr=[];
+    QUESTIONS.forEach(function(q,i){
+      if(state.set!=='all' && q.setId!==state.set) return;
+      if(analysisCategory(q)!==catId) return;
+      if(selectOnly && !(q.type==='single'||q.type==='multi')) return;
+      var s=state.stats[q.id];
+      if(mode==='unseen' && s && s.tries>0) return;
+      if(mode==='wrong' && !(s && s.wrong>0)) return;
+      arr.push(i);
+    });
+    return arr;
+  }
+
+  function shuffleIndices(arr){
+    arr=arr.slice();
+    for(var j=arr.length-1;j>0;j--){ var k=Math.floor(Math.random()*(j+1)); var t=arr[j]; arr[j]=arr[k]; arr[k]=t; }
+    return arr;
+  }
+
+  function startAnalysisAction(catId, action){
+    if(action==='mock'){
+      var arr=shuffleIndices(indicesByAnalysisCategory(catId, 'all', true));
+      if(!arr.length){ alert('このカテゴリに選択問題がありません。'); return; }
+      var countValue=$('mockCountSelect') ? $('mockCountSelect').value : '25';
+      var count=countValue==='all'?arr.length:Math.min(Number(countValue||25), arr.length);
+      state.order=arr.slice(0,count);
+      state.index=0;
+      state.mock={active:true, finished:false, answers:{}, result:null, lastConfig:{analysisCategory:catId, count:countValue}};
+      showView('quizView'); renderQuestion(); window.scrollTo(0,0);
+      return;
+    }
+
+    var mode=(action==='unseen'||action==='wrong')?action:'all';
+    var order=indicesByAnalysisCategory(catId, mode, false);
+    if(!order.length){
+      alert(action==='unseen'?'このカテゴリに未回答問題はありません。':(action==='wrong'?'このカテゴリに誤答あり問題はありません。':'このカテゴリに問題がありません。'));
+      return;
+    }
+    state.mock.active=false; state.mock.finished=false;
+    state.order=order; state.index=0;
+    showView('quizView'); renderQuestion(); window.scrollTo(0,0);
+  }
+
+
+
   function $(id){ return document.getElementById(id); }
   function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
   function normalize(s){
@@ -104,7 +327,7 @@
   function updateSummary(){
     var t=totals(state.set);
     $('totalCount').textContent=t.total; $('totalAttempts').textContent=t.attempts; $('totalWrong').textContent=t.wrong; $('totalRate').textContent=t.attempts?Math.round(t.correct/t.attempts*100)+'%':'0%';
-    renderSetStats(); renderCategoryStats();
+    renderSetStats(); renderCategoryStats(); renderAnalysisDashboard();
   }
   function renderSetStats(){
     var box=$('setStats'); var html='';
@@ -536,6 +759,9 @@
   function importHistory(file){ if(!file)return; var reader=new FileReader(); reader.onload=function(){ try{ state.stats=JSON.parse(String(reader.result||'{}')); for(var id in state.stats) state.stats[id]=normalizeStat(state.stats[id]); saveStats(); updateSummary(); alert('履歴を読み込みました。'); }catch(e){ alert('読み込みに失敗しました。'); } }; reader.readAsText(file); }
   function bindEvents(){
     $('setSelect').addEventListener('change', function(){ state.set=this.value; setupCategorySelect(); updateSummary(); });
+    $('categorySelect').addEventListener('change', function(){ state.category=this.value; });
+    $('modeSelect').addEventListener('change', function(){ state.mode=this.value; });
+    $('searchInput').addEventListener('input', function(){ state.search=this.value||''; });
     $('startBtn').addEventListener('click', startQuiz);
     $('listBtn').addEventListener('click', function(){ state.mock.active=false; state.mock.finished=false; state.set=$('setSelect').value; renderQuestionList(); showView('listView'); });
     if($('mockStartBtn')) $('mockStartBtn').addEventListener('click', startMockTest);

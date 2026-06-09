@@ -11,13 +11,13 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="stylesheet" href="./styles.css">
-  <title>社会薬学総論 模擬テストモード追加版</title>
+  <title>社会薬学総論 カテゴリ別成績レーダーチャート追加版</title>
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>社会薬学総論</h1>
-      <p>模擬テストモード追加版</p>
+      <p>カテゴリ別成績レーダーチャート追加版</p>
     </div>
     <button id="settingsBtn" class="icon-btn" type="button" aria-label="設定">⚙</button>
   </header>
@@ -29,6 +29,19 @@
         <div class="summary-card"><b id="totalAttempts">0</b><span>回答</span></div>
         <div class="summary-card"><b id="totalWrong">0</b><span>誤答</span></div>
         <div class="summary-card"><b id="totalRate">0%</b><span>正答率</span></div>
+      </div>
+
+
+      <div class="panel analysis-panel">
+        <div class="section-head">
+          <div>
+            <h2>カテゴリ別成績分析</h2>
+            <p class="hint-text">7分類で回答率と正答率をレーダーチャート表示します。現在選択中の問題セットに連動します。</p>
+          </div>
+        </div>
+        <div id="analysisSummary" class="analysis-summary"></div>
+        <div id="analysisRadar" class="radar-wrap"></div>
+        <div id="analysisCategoryCards" class="analysis-cards"></div>
       </div>
 
       <div class="panel">
