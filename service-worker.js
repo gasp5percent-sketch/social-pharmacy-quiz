@@ -1,5 +1,5 @@
 // Cache cleanup service worker. This version intentionally does not cache app files.
-const CACHE_NAME = 'social-pharmacy-radar-analysis-v1';
+const CACHE_NAME = 'social-pharmacy-radar-set-filter-v1';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

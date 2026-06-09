@@ -168,3 +168,9 @@ dialog{width:min(92vw,420px);padding:0;border:0;border-radius:18px;background:tr
   .radar-dot.answer{fill:#60a5fa}.radar-dot.accuracy{fill:#f87171}
   .legend-answer{background:#60a5fa}.legend-accuracy{background:#f87171}
 }
+
+
+/* radar mode switch and combined filters */
+.analysis-panel select#analysisModeSelect{margin:6px 0 12px}
+.analysis-summary{margin-top:10px}
+.analysis-card[data-analysis-card]{scroll-margin-top:20px}

@@ -8,16 +8,19 @@
   <meta name="apple-mobile-web-app-title" content="社会薬学演習">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="format-detection" content="telephone=no">
-  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="manifest" href="./manifest.webmanifest?v=radarsetfilter1">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
-  <link rel="stylesheet" href="./styles.css">
-  <title>社会薬学総論 カテゴリ別成績レーダーチャート追加版</title>
+  <link rel="stylesheet" href="./styles.css?v=radarsetfilter1">
+  <title>社会薬学総論 レーダーチャート切替・複合フィルター追加版</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>社会薬学総論</h1>
-      <p>カテゴリ別成績レーダーチャート追加版</p>
+      <p>レーダーチャート切替・複合フィルター追加版</p>
     </div>
     <button id="settingsBtn" class="icon-btn" type="button" aria-label="設定">⚙</button>
   </header>
@@ -36,9 +39,14 @@
         <div class="section-head">
           <div>
             <h2>カテゴリ別成績分析</h2>
-            <p class="hint-text">7分類で回答率と正答率をレーダーチャート表示します。現在選択中の問題セットに連動します。</p>
+            <p class="hint-text">カテゴリ別と問題セット別を切り替えて、回答率と正答率をレーダーチャート表示します。</p>
           </div>
         </div>
+        <label class="label" for="analysisModeSelect">グラフ表示</label>
+        <select id="analysisModeSelect">
+          <option value="category">カテゴリ別</option>
+          <option value="set">問題セット別</option>
+        </select>
         <div id="analysisSummary" class="analysis-summary"></div>
         <div id="analysisRadar" class="radar-wrap"></div>
         <div id="analysisCategoryCards" class="analysis-cards"></div>
@@ -51,15 +59,22 @@
         <label class="label" for="categorySelect">カテゴリ</label>
         <select id="categorySelect"></select>
 
-        <label class="label" for="modeSelect">出題モード</label>
+        <label class="label" for="modeSelect">出題状態</label>
         <select id="modeSelect">
           <option value="all">全問題</option>
+          <option value="unseen">未回答</option>
           <option value="weak">苦手・誤答あり</option>
           <option value="lastWrong">直近不正解</option>
-          <option value="unseen">未回答</option>
           <option value="bookmark">ブックマーク</option>
-          <option value="text">記述・空欄のみ</option>
+        </select>
+
+        <label class="label" for="typeFilterSelect">問題形式</label>
+        <select id="typeFilterSelect">
+          <option value="all">全形式</option>
           <option value="select">選択問題のみ</option>
+          <option value="single">単一選択のみ</option>
+          <option value="multi">複数選択のみ</option>
+          <option value="text">記述・空欄のみ</option>
           <option value="self">自己採点カードのみ</option>
           <option value="figure">図表つきのみ</option>
         </select>
@@ -185,7 +200,7 @@
     })();
   </script>
 
-  <script src="./data/questions.js"></script>
-  <script src="./app.js"></script>
+  <script src="./data/questions.js?v=radarsetfilter1"></script>
+  <script src="./app.js?v=radarsetfilter1"></script>
 </body>
 </html>

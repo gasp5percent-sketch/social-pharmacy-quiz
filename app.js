@@ -28,7 +28,7 @@
     'CJD':'Creutzfeldt-Jakob Disease（クロイツフェルト・ヤコブ病）'
   };
 
-  var state = { set:'all', category:'all', mode:'all', search:'', shuffle:false, order:[], index:0, stats:{}, mock:{active:false, finished:false, answers:{}, result:null, lastConfig:null} };
+  var state = { set:'all', category:'all', mode:'all', typeFilter:'all', search:'', shuffle:false, order:[], index:0, stats:{}, mock:{active:false, finished:false, answers:{}, result:null, lastConfig:null} };
 
 
   var ANALYSIS_CATEGORIES = [
@@ -90,13 +90,31 @@
     });
   }
 
-  function analysisStats(){
+  function setShortName(s){
+    var n=String(s.name||'');
+    if(n.indexOf('既存')>=0) return '既存';
+    if(n.indexOf('まとめ')>=0) return 'R8まとめ';
+    var m=n.match(/第\s*([0-9,，\-ー]+)回/);
+    if(m) return m[1].replace('，',',');
+    return n.replace(/^R8\s*/,'').slice(0,8);
+  }
+
+  function calcGroupStats(groups){
+    groups.forEach(function(g){
+      g.answerRate=g.total?Math.round(g.done/g.total*100):0;
+      g.accuracy=g.attempts?Math.round(g.correct/g.attempts*100):0;
+    });
+    return groups;
+  }
+
+  function analysisCategoryStats(){
     var base={};
     ANALYSIS_CATEGORIES.forEach(function(c){
-      base[c.id]={id:c.id,label:c.label,short:c.short,total:0,done:0,attempts:0,correct:0,wrong:0,lastWrong:0,bookmarked:0,answerRate:0,accuracy:0};
+      base[c.id]={id:c.id,label:c.label,short:c.short,total:0,done:0,attempts:0,correct:0,wrong:0,lastWrong:0,bookmarked:0,kind:'category'};
     });
 
-    analysisFilteredQuestions().forEach(function(q){
+    QUESTIONS.forEach(function(q){
+      if(state.set!=='all' && q.setId!==state.set) return;
       var id=analysisCategory(q);
       if(!base[id]) return;
       var b=base[id], s=state.stats[q.id];
@@ -111,12 +129,35 @@
       }
     });
 
-    ANALYSIS_CATEGORIES.forEach(function(c){
-      var b=base[c.id];
-      b.answerRate=b.total?Math.round(b.done/b.total*100):0;
-      b.accuracy=b.attempts?Math.round(b.correct/b.attempts*100):0;
+    return calcGroupStats(ANALYSIS_CATEGORIES.map(function(c){return base[c.id];}));
+  }
+
+  function analysisSetStats(){
+    var base={};
+    SETS.forEach(function(s){
+      base[s.id]={id:s.id,label:s.name,short:setShortName(s),total:0,done:0,attempts:0,correct:0,wrong:0,lastWrong:0,bookmarked:0,kind:'set'};
     });
-    return ANALYSIS_CATEGORIES.map(function(c){return base[c.id];});
+
+    QUESTIONS.forEach(function(q){
+      if(!base[q.setId]) return;
+      var b=base[q.setId], s=state.stats[q.id];
+      b.total++;
+      if(s){
+        b.attempts+=s.tries||0;
+        b.correct+=s.correct||0;
+        b.wrong+=s.wrong||0;
+        if(s.tries>0) b.done++;
+        if(s.last===false) b.lastWrong++;
+        if(s.bookmarked) b.bookmarked++;
+      }
+    });
+
+    return calcGroupStats(SETS.map(function(s){return base[s.id];}));
+  }
+
+  function analysisStats(){
+    var mode=$('analysisModeSelect') ? $('analysisModeSelect').value : 'category';
+    return mode==='set' ? analysisSetStats() : analysisCategoryStats();
   }
 
   function radarPoint(i, value, n, cx, cy, rmax){
@@ -172,6 +213,7 @@
 
   function renderAnalysisDashboard(){
     if(!$('analysisRadar')) return;
+    var mode=$('analysisModeSelect') ? $('analysisModeSelect').value : 'category';
     var stats=analysisStats();
     var total=stats.reduce(function(a,b){return a+b.total;},0);
     var done=stats.reduce(function(a,b){return a+b.done;},0);
@@ -181,7 +223,8 @@
     var accuracy=attempts?Math.round(correct/attempts*100):0;
 
     var setLabel=state.set==='all'?'全セット横断':(SETS.find(function(s){return s.id===state.set;})||{name:'選択セット'}).name;
-    $('analysisSummary').innerHTML='<div><b>'+esc(setLabel)+'</b></div><div>回答率 <b>'+answerRate+'%</b>（'+done+'/'+total+'問）</div><div>正答率 <b>'+accuracy+'%</b>（'+correct+'/'+attempts+'回）</div>';
+    var modeLabel=mode==='set'?'問題セット別（全セット）':'カテゴリ別（'+setLabel+'）';
+    $('analysisSummary').innerHTML='<div><b>'+esc(modeLabel)+'</b></div><div>回答率 <b>'+answerRate+'%</b>（'+done+'/'+total+'問）</div><div>正答率 <b>'+accuracy+'%</b>（'+correct+'/'+attempts+'回）</div>';
 
     $('analysisRadar').innerHTML=renderAnalysisRadar(stats);
 
@@ -192,17 +235,17 @@
       html+='<div class="mini-bars"><label>回答率 '+s.answerRate+'%</label><div><i style="width:'+s.answerRate+'%"></i></div><label>正答率 '+s.accuracy+'%</label><div><i class="accuracy" style="width:'+s.accuracy+'%"></i></div></div>';
       html+='<small>回答 '+s.attempts+'回 / 誤答 '+s.wrong+'回 / 直近不正解 '+s.lastWrong+'問 / ブックマーク '+s.bookmarked+'問</small>';
       html+='<div class="analysis-actions">';
-      html+='<button type="button" data-analysis-action="all" data-analysis-id="'+esc(s.id)+'">このカテゴリを解く</button>';
-      html+='<button type="button" data-analysis-action="unseen" data-analysis-id="'+esc(s.id)+'">未回答</button>';
-      html+='<button type="button" data-analysis-action="wrong" data-analysis-id="'+esc(s.id)+'">誤答復習</button>';
-      html+='<button type="button" data-analysis-action="mock" data-analysis-id="'+esc(s.id)+'">テスト</button>';
+      html+='<button type="button" data-analysis-kind="'+esc(s.kind)+'" data-analysis-action="all" data-analysis-id="'+esc(s.id)+'">この範囲を解く</button>';
+      html+='<button type="button" data-analysis-kind="'+esc(s.kind)+'" data-analysis-action="unseen" data-analysis-id="'+esc(s.id)+'">未回答</button>';
+      html+='<button type="button" data-analysis-kind="'+esc(s.kind)+'" data-analysis-action="wrong" data-analysis-id="'+esc(s.id)+'">誤答復習</button>';
+      html+='<button type="button" data-analysis-kind="'+esc(s.kind)+'" data-analysis-action="mock" data-analysis-id="'+esc(s.id)+'">テスト</button>';
       html+='</div></div>';
     });
     $('analysisCategoryCards').innerHTML=html;
 
     $('analysisCategoryCards').querySelectorAll('[data-analysis-action]').forEach(function(btn){
       btn.addEventListener('click', function(){
-        startAnalysisAction(this.getAttribute('data-analysis-id'), this.getAttribute('data-analysis-action'));
+        startAnalysisAction(this.getAttribute('data-analysis-id'), this.getAttribute('data-analysis-action'), this.getAttribute('data-analysis-kind'));
       });
     });
   }
@@ -221,29 +264,45 @@
     return arr;
   }
 
+
+  function indicesByAnalysisSet(setId, mode, selectOnly){
+    var arr=[];
+    QUESTIONS.forEach(function(q,i){
+      if(q.setId!==setId) return;
+      if(selectOnly && !(q.type==='single'||q.type==='multi')) return;
+      var s=state.stats[q.id];
+      if(mode==='unseen' && s && s.tries>0) return;
+      if(mode==='wrong' && !(s && s.wrong>0)) return;
+      arr.push(i);
+    });
+    return arr;
+  }
+
   function shuffleIndices(arr){
     arr=arr.slice();
     for(var j=arr.length-1;j>0;j--){ var k=Math.floor(Math.random()*(j+1)); var t=arr[j]; arr[j]=arr[k]; arr[k]=t; }
     return arr;
   }
 
-  function startAnalysisAction(catId, action){
+  function startAnalysisAction(targetId, action, kind){
+    kind=kind||'category';
+    var order;
     if(action==='mock'){
-      var arr=shuffleIndices(indicesByAnalysisCategory(catId, 'all', true));
-      if(!arr.length){ alert('このカテゴリに選択問題がありません。'); return; }
+      order=shuffleIndices(kind==='set' ? indicesByAnalysisSet(targetId, 'all', true) : indicesByAnalysisCategory(targetId, 'all', true));
+      if(!order.length){ alert('この範囲に選択問題がありません。'); return; }
       var countValue=$('mockCountSelect') ? $('mockCountSelect').value : '25';
-      var count=countValue==='all'?arr.length:Math.min(Number(countValue||25), arr.length);
-      state.order=arr.slice(0,count);
+      var count=countValue==='all'?order.length:Math.min(Number(countValue||25), order.length);
+      state.order=order.slice(0,count);
       state.index=0;
-      state.mock={active:true, finished:false, answers:{}, result:null, lastConfig:{analysisCategory:catId, count:countValue}};
+      state.mock={active:true, finished:false, answers:{}, result:null, lastConfig:{analysisTarget:targetId, analysisKind:kind, count:countValue}};
       showView('quizView'); renderQuestion(); window.scrollTo(0,0);
       return;
     }
 
     var mode=(action==='unseen'||action==='wrong')?action:'all';
-    var order=indicesByAnalysisCategory(catId, mode, false);
+    order=kind==='set' ? indicesByAnalysisSet(targetId, mode, false) : indicesByAnalysisCategory(targetId, mode, false);
     if(!order.length){
-      alert(action==='unseen'?'このカテゴリに未回答問題はありません。':(action==='wrong'?'このカテゴリに誤答あり問題はありません。':'このカテゴリに問題がありません。'));
+      alert(action==='unseen'?'この範囲に未回答問題はありません。':(action==='wrong'?'この範囲に誤答あり問題はありません。':'この範囲に問題がありません。'));
       return;
     }
     state.mock.active=false; state.mock.finished=false;
@@ -291,20 +350,37 @@
     if(q.choiceExplanations) parts=parts.concat(q.choiceExplanations);
     return parts.join(' ').toLowerCase();
   }
+
+  function statusMatches(q, s, mode){
+    if(mode==='weak') return !!(s && s.wrong>0);
+    if(mode==='lastWrong') return !!(s && s.last===false);
+    if(mode==='unseen') return !(s && s.tries>0);
+    if(mode==='bookmark') return !!(s && s.bookmarked);
+    return true;
+  }
+
+  function typeMatches(q, typeFilter){
+    if(typeFilter==='select') return q.type==='single' || q.type==='multi';
+    if(typeFilter==='single') return q.type==='single';
+    if(typeFilter==='multi') return q.type==='multi';
+    if(typeFilter==='text') return q.type==='text';
+    if(typeFilter==='self') return q.type==='self';
+    if(typeFilter==='figure') return !!(q.figures && q.figures.length);
+    return true;
+  }
+
+  function currentTypeFilter(){
+    return $('typeFilterSelect') ? $('typeFilterSelect').value : (state.typeFilter || 'all');
+  }
+
   function makeOrder(){
     var arr=[]; var query=String(state.search||'').toLowerCase();
     QUESTIONS.forEach(function(q,i){
       var s=state.stats[q.id]; var ok=true;
       if(state.set!=='all' && q.setId!==state.set) ok=false;
       if(state.category!=='all' && q.category!==state.category) ok=false;
-      if(state.mode==='weak' && !(s && s.wrong>0)) ok=false;
-      if(state.mode==='lastWrong' && !(s && s.last===false)) ok=false;
-      if(state.mode==='unseen' && s && s.tries>0) ok=false;
-      if(state.mode==='bookmark' && !(s && s.bookmarked)) ok=false;
-      if(state.mode==='text' && q.type!=='text') ok=false;
-      if(state.mode==='select' && !(q.type==='single'||q.type==='multi')) ok=false;
-      if(state.mode==='self' && q.type!=='self') ok=false;
-      if(state.mode==='figure' && !(q.figures && q.figures.length)) ok=false;
+      if(!statusMatches(q, s, state.mode)) ok=false;
+      if(!typeMatches(q, state.typeFilter || 'all')) ok=false;
       if(query && questionText(q).indexOf(query)<0) ok=false;
       if(ok) arr.push(i);
     });
@@ -351,7 +427,13 @@
     box.innerHTML=html;
   }
   function startQuiz(){
-    state.set=$('setSelect').value; state.category=$('categorySelect').value; state.mode=$('modeSelect').value; state.search=$('searchInput').value||''; state.shuffle=$('shuffleToggle').checked; state.index=0;
+    state.set=$('setSelect').value;
+    state.category=$('categorySelect').value;
+    state.mode=$('modeSelect').value;
+    state.typeFilter=currentTypeFilter();
+    state.search=$('searchInput').value||'';
+    state.shuffle=$('shuffleToggle').checked;
+    state.index=0;
     makeOrder(); showView('quizView'); renderQuestion();
   }
   function renderFigures(figures){
@@ -521,6 +603,7 @@
     var selectedSet=$('setSelect').value;
     var selectedCategory=$('categorySelect').value;
     var selectedMode=$('modeSelect').value;
+    var selectedType=currentTypeFilter();
     var query=String($('searchInput').value||'').toLowerCase();
     var arr=[];
 
@@ -530,14 +613,9 @@
       if(selectedSet!=='all' && q.setId!==selectedSet) return;
       if(selectedCategory!=='all' && q.category!==selectedCategory) return;
       if(query && questionText(q).indexOf(query)<0) return;
-
-      if(selectedMode==='weak' && !(s && s.wrong>0)) return;
-      if(selectedMode==='lastWrong' && !(s && s.last===false)) return;
-      if(selectedMode==='unseen' && s && s.tries>0) return;
-      if(selectedMode==='bookmark' && !(s && s.bookmarked)) return;
-      if(selectedMode==='figure' && !(q.figures && q.figures.length)) return;
-      if(selectedMode==='text' || selectedMode==='self') return;
-
+      if(!statusMatches(q, s, selectedMode)) return;
+      if(selectedType==='text' || selectedType==='self') return;
+      if(!typeMatches(q, selectedType)) return;
       arr.push(i);
     });
 
@@ -559,11 +637,12 @@
     state.set=$('setSelect').value;
     state.category=$('categorySelect').value;
     state.mode=$('modeSelect').value;
+    state.typeFilter=currentTypeFilter();
     state.search=$('searchInput').value||'';
 
     var arr=mockEligibleIndices();
     if(!arr.length){
-      alert('この条件で出題できる選択問題がありません。出題モードやカテゴリを変更してください。');
+      alert('この条件で出題できる選択問題がありません。出題状態や問題形式を変更してください。');
       return;
     }
 
@@ -582,6 +661,7 @@
         set:state.set,
         category:state.category,
         mode:state.mode,
+        typeFilter:state.typeFilter,
         search:state.search,
         count:countValue,
         unseenFirst:!!($('mockUnseenFirstToggle') && $('mockUnseenFirstToggle').checked)
@@ -697,6 +777,7 @@
       setupCategorySelect();
       $('categorySelect').value=cfg.category || 'all';
       $('modeSelect').value=cfg.mode || 'all';
+      if($('typeFilterSelect')) $('typeFilterSelect').value=cfg.typeFilter || 'all';
       $('searchInput').value=cfg.search || '';
       $('mockCountSelect').value=cfg.count || '10';
       if($('mockUnseenFirstToggle')) $('mockUnseenFirstToggle').checked=!!cfg.unseenFirst;
@@ -732,12 +813,20 @@
     var p=document.querySelector('.answer-panel'); if(p)p.classList.add('show'); if(q.type!=='text') $('questionCard').classList.add('graded');
   }
   function renderQuestionList(){
+    state.set=$('setSelect').value;
+    state.category=$('categorySelect').value;
+    state.mode=$('modeSelect').value;
+    state.typeFilter=currentTypeFilter();
     var box=$('questionList'), query=String($('listSearchInput').value||'').toLowerCase(), html='';
     QUESTIONS.forEach(function(q,i){
+      var s=state.stats[q.id];
       if(state.set!=='all'&&q.setId!==state.set) return;
+      if(state.category!=='all'&&q.category!==state.category) return;
+      if(!statusMatches(q, s, state.mode)) return;
+      if(!typeMatches(q, state.typeFilter||'all')) return;
       if(query&&questionText(q).indexOf(query)<0)return;
-      var s=state.stats[q.id]||emptyStats(); var rate=s.tries?Math.round(s.correct/s.tries*100)+'%':'未回答';
-      html+='<button class="list-item" type="button" data-index="'+i+'"><b>'+(s.bookmarked?'★ ':'')+esc(q.setName)+' / No.'+(q.no||'')+' '+esc(q.prompt)+'</b><small>'+esc(q.category)+' / 回答 '+s.tries+'回 / 誤答 '+s.wrong+'回 / 正答率 '+rate+'</small></button>';
+      var ss=s||emptyStats(); var rate=ss.tries?Math.round(ss.correct/ss.tries*100)+'%':'未回答';
+      html+='<button class="list-item" type="button" data-index="'+i+'"><b>'+(ss.bookmarked?'★ ':'')+esc(q.setName)+' / No.'+(q.no||'')+' '+esc(q.prompt)+'</b><small>'+esc(q.category)+' / '+q.type+' / 回答 '+ss.tries+'回 / 誤答 '+ss.wrong+'回 / 正答率 '+rate+'</small></button>';
     });
     box.innerHTML=html||'<div class="panel">該当する問題がありません。</div>';
     box.querySelectorAll('.list-item').forEach(function(btn){ btn.addEventListener('click',function(){ state.mock.active=false; state.mock.finished=false; state.order=[Number(this.getAttribute('data-index'))]; state.index=0; showView('quizView'); renderQuestion(); }); });
@@ -761,6 +850,8 @@
     $('setSelect').addEventListener('change', function(){ state.set=this.value; setupCategorySelect(); updateSummary(); });
     $('categorySelect').addEventListener('change', function(){ state.category=this.value; });
     $('modeSelect').addEventListener('change', function(){ state.mode=this.value; });
+    if($('typeFilterSelect')) $('typeFilterSelect').addEventListener('change', function(){ state.typeFilter=this.value; });
+    if($('analysisModeSelect')) $('analysisModeSelect').addEventListener('change', renderAnalysisDashboard);
     $('searchInput').addEventListener('input', function(){ state.search=this.value||''; });
     $('startBtn').addEventListener('click', startQuiz);
     $('listBtn').addEventListener('click', function(){ state.mock.active=false; state.mock.finished=false; state.set=$('setSelect').value; renderQuestionList(); showView('listView'); });
